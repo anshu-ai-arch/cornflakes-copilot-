@@ -10,6 +10,7 @@ from app.core.clock import Clock
 from app.core.config import settings
 from app.engine.state import IncidentState
 from app.tools.deterministic import DeterministicTools, ActionClient
+from app.llm.boundary import execute_diagnose_boundary
 
 
 async def triage_node(state: IncidentState) -> IncidentState:
@@ -61,40 +62,30 @@ async def triage_node(state: IncidentState) -> IncidentState:
 
 async def diagnose_node(state: IncidentState) -> IncidentState:
     """
-    DIAGNOSE NODE: Identifies root cause and cites runbooks.
-    (Detailed LLM/Rule engine in Part 5).
+    DIAGNOSE NODE: Identifies root cause and cites runbooks via LLM Boundary.
+    Supports BM25 RAG, schema validation, 1-time JSON repair,
+    fact normalizer (T8), LLM-off fallback (T9), and citation enforcement (T11).
     """
-    error_type = state.error_type
-    provider_id = state.provider
-    evidence = state.evidence
+    query = f"{state.error_type} on {state.entity_id}. Provider: {state.provider or ''}"
+    res = await execute_diagnose_boundary(
+        evidence=state.evidence,
+        query_text=query
+    )
 
-    root_cause = "Unknown operational failure"
-    citations = []
     category = "INFRASTRUCTURE"
-
-    if error_type == "OUT_OF_FUNDS" or (
-        evidence.get("provider_status", {}).get("data", {}).get("status") == "OUT_OF_FUNDS"
-    ):
-        root_cause = f"Provider '{provider_id}' has run out of funds/account credits."
-        citations = ["RB-001"]
+    if "OUT_OF_FUNDS" in state.error_type or "402" in str(res.get("diagnosis", "")):
         category = "PROVIDER_OUT_OF_FUNDS"
-    elif error_type == "WORKER_DIED":
-        root_cause = "Worker node died mid-job; missed heartbeats for >90s."
-        citations = ["RB-002"]
+    elif "WORKER" in state.error_type:
         category = "WORKER_CRASH"
-    elif error_type == "SHOT_FAILED_3X":
-        root_cause = "Shot rendering failed 3 consecutive attempts."
-        citations = ["RB-003"]
+    elif "SHOT" in state.error_type:
         category = "SHOT_RETRY_EXHAUSTED"
-    else:
-        root_cause = f"Operational incident on {state.entity_id}: {error_type}"
-        citations = ["RB-012"]
 
     state.diagnosis = {
-        "root_cause": root_cause,
+        "root_cause": res.get("diagnosis"),
         "category": category,
-        "citations": citations,
-        "confidence": 0.95,
+        "citations": res.get("citations", []),
+        "confidence": res.get("confidence", 0.95),
+        "is_fallback": res.get("is_fallback", False),
         "diagnosed_at": Clock.now_iso()
     }
 
