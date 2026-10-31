@@ -79,7 +79,7 @@
             <h1 class="text-lg font-bold tracking-tight text-ink">Cornflakes Media</h1>
             <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">Ops Copilot</span>
           </div>
-          <p class="text-xs text-stone-500">Safe Incident Triage, Human Approval & Durable Workflows</p>
+          <p class="text-xs text-stone-500">Autonomous Incident Investigation, Deterministic Boundaries & HITL</p>
         </div>
       </div>
 
@@ -105,79 +105,92 @@
   </header>
 
   <!-- Metrics Overview Bar -->
-  <section class="max-w-7xl mx-auto w-full px-6 pt-6">
+  <section class="max-w-7xl mx-auto w-full px-6 pt-5">
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+      <div class="corn-card rounded-xl p-3 flex flex-col">
         <span class="text-xs font-medium text-stone-500">Active Incidents</span>
         <span id="stat-total" class="text-2xl font-bold text-ink mt-0.5">0</span>
       </div>
-      <div class="corn-card rounded-xl p-3.5 flex flex-col bg-amber-50/50 border-amber-200/60">
-        <span class="text-xs font-medium text-amber-800">Pending Approval</span>
+      <div class="corn-card rounded-xl p-3 flex flex-col bg-amber-50/50 border-amber-200/60">
+        <span class="text-xs font-medium text-amber-800">Pending Authorization</span>
         <span id="stat-pending" class="text-2xl font-bold text-amber-900 mt-0.5">0</span>
       </div>
-      <div class="corn-card rounded-xl p-3.5 flex flex-col">
-        <span class="text-xs font-medium text-stone-500">Duplicate Alerts Merged</span>
+      <div class="corn-card rounded-xl p-3 flex flex-col">
+        <span class="text-xs font-medium text-stone-500">Alerts Merged (T1)</span>
         <span id="stat-duplicates" class="text-2xl font-bold text-ink mt-0.5">0</span>
       </div>
-      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+      <div class="corn-card rounded-xl p-3 flex flex-col">
         <span class="text-xs font-medium text-stone-500">Duplicate Action Rate</span>
         <span class="text-2xl font-bold text-emerald-700 mt-0.5">0.0%</span>
       </div>
-      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+      <div class="corn-card rounded-xl p-3 flex flex-col">
         <span class="text-xs font-medium text-stone-500">Policy Blocked Unsafe</span>
         <span id="stat-blocked" class="text-2xl font-bold text-rose-700 mt-0.5">0</span>
       </div>
     </div>
   </section>
 
-  <!-- Simulation Demo Quick Bar -->
-  <section class="max-w-7xl mx-auto w-full px-6 pt-4">
-    <div class="corn-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 bg-[#FFFDF8]">
+  <!-- Live Agent Scenario Quick Launch Bar -->
+  <section class="max-w-7xl mx-auto w-full px-6 pt-3.5">
+    <div class="corn-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-2.5 bg-[#FFFDF8]">
       <div class="flex items-center space-x-2">
-        <span class="text-xs font-semibold text-stone-700">⚡ Live Agent Scenarios:</span>
+        <button onclick="openCustomAlertModal()"
+                class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1.5">
+          <span>➕ Trigger Custom Incident</span>
+        </button>
+        <span class="text-stone-300">|</span>
+        <span class="text-xs font-semibold text-stone-700">Live Agent Scenarios:</span>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway 402 Account balance depleted', true)"
-                class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition">
-          🚨 Provider Out of Funds (Approval Flow)
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway 402 Account balance depleted', true)"
+                class="text-xs px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg border border-amber-300 transition"
+                title="Generates a unique job ID, sets runway out-of-funds, and pauses for human approval">
+          🚨 Out of Funds (HITL)
         </button>
-        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway out of funds false alarm', false)"
-                class="text-xs px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-medium rounded-lg shadow-sm transition">
-          ⚠️ False Alarm (Trap T10 Guard)
+        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway false alarm report', false)"
+                class="text-xs px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold rounded-lg border border-rose-300 transition"
+                title="Alert claims outage, but provider is healthy: Policy Engine blocks disabling healthy provider (Trap T10)">
+          ⚠️ False Alarm (T10 Guard)
         </button>
-        <button onclick="triggerScenario('WORKER_DIED', 'job_103', 'luma', 'Worker lease expired; heartbeat missed 90s')"
-                class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
+        <button onclick="triggerDynamicScenario('WORKER_DIED', 'luma', 'Worker lease expired; heartbeat missed 90s')"
+                class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
+                title="Worker died: auto-approved zero-cost requeue">
           🤖 Worker Crash (Auto-Approve)
         </button>
-        <button onclick="triggerScenario('SHOT_FAILED_3X', 'job_102', 'pika', 'Shot render failed 3 times: frame glitch')"
-                class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
+        <button onclick="triggerDynamicScenario('SHOT_FAILED_3X', 'pika', 'Shot render failed 3 times: frame glitch')"
+                class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
+                title="Shot retry under $0.50 auto-approve cap">
           ⚡ 3x Shot Glitch (Auto-Retry)
         </button>
         <button onclick="triggerSameAlert10Times()"
-                class="text-xs px-3 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition">
-          🔁 10x Alert Storm (Trap T1)
+                class="text-xs px-2.5 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition"
+                title="Trap T1: 10 duplicate alerts collapse into exactly 1 incident with merged count">
+          🔁 10x Alert Storm (T1)
         </button>
-        <button onclick="resetSimulation()"
-                class="text-xs px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-600 rounded-lg border border-stone-300 transition">
-          ↺ Reset
+        <button onclick="clearAllIncidents()"
+                class="text-xs px-2.5 py-1.5 bg-white hover:bg-rose-50 text-rose-700 font-semibold rounded-lg border border-rose-300 transition"
+                title="Wipes all incidents from the queue to start fresh">
+          🗑️ Clear Queue
         </button>
       </div>
     </div>
   </section>
 
   <!-- Main Content Grid -->
-  <main class="max-w-7xl mx-auto w-full px-6 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <main class="max-w-7xl mx-auto w-full px-6 py-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-    <!-- Left Column: Incident List (5 cols) -->
-    <div class="lg:col-span-5 flex flex-col space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-bold text-stone-800 uppercase tracking-wider">Incident Queue</h2>
-        <button onclick="loadIncidents()" class="text-xs text-amber-700 hover:text-amber-800 font-medium flex items-center space-x-1">
-          <span>↻ Refresh</span>
-        </button>
+    <!-- Left Column: Incident Queue (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-2.5">
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-xs font-bold text-stone-800 uppercase tracking-wider">Active Incident Queue</h2>
+        <div class="flex items-center space-x-2 text-xs">
+          <button onclick="loadIncidents()" class="text-amber-700 hover:text-amber-900 font-medium flex items-center space-x-1">
+            <span>↻ Refresh</span>
+          </button>
+        </div>
       </div>
 
-      <div id="incident-list" class="space-y-2.5 overflow-y-auto max-h-[720px] pr-1">
+      <div id="incident-list" class="space-y-2 overflow-y-auto max-h-[740px] pr-1">
         <!-- Rendered dynamically -->
         <div class="text-xs text-stone-500 p-8 text-center bg-white rounded-xl border border-stone-200">
           Loading incidents...
@@ -185,25 +198,95 @@
       </div>
     </div>
 
-    <!-- Right Column: Incident Inspector & Approval Panel (7 cols) -->
+    <!-- Right Column: Multi-Tab Incident Inspector & Trajectory (7 cols) -->
     <div class="lg:col-span-7">
-      <div id="incident-detail" class="corn-card rounded-2xl p-6 min-h-[600px] flex flex-col">
-        <div class="flex flex-col items-center justify-center flex-1 text-center py-16 text-stone-400">
-          <span class="text-4xl mb-2">📋</span>
-          <p class="text-sm font-medium">Select an incident from the queue to inspect</p>
-          <p class="text-xs text-stone-400 mt-1">Review deterministic tool facts, policy validation, and dry-run preview</p>
+      <div id="incident-detail" class="corn-card rounded-2xl p-5 min-h-[660px] flex flex-col">
+        <div class="flex flex-col items-center justify-center flex-1 text-center py-20 text-stone-400">
+          <span class="text-4xl mb-2">🧠</span>
+          <p class="text-sm font-semibold text-stone-700">No Incident Selected</p>
+          <p class="text-xs text-stone-500 mt-1">Select an incident from the queue or click a scenario above to inspect the agent's real-time reasoning trajectory.</p>
         </div>
       </div>
     </div>
 
   </main>
 
+  <!-- Custom Alert Modal Dialog -->
+  <div id="custom-alert-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-2xs hidden items-center justify-center z-50 p-4">
+    <div class="corn-card rounded-2xl max-w-lg w-full p-6 shadow-xl border border-amber-200 bg-[#FFFDF8]">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+          <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm">➕</span>
+          <h3 class="text-base font-bold text-ink">Launch Custom Copilot Investigation</h3>
+        </div>
+        <button onclick="closeCustomAlertModal()" class="text-stone-400 hover:text-stone-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-3.5 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Error Category</label>
+            <select id="custom-error-type" class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-medium">
+              <option value="OUT_OF_FUNDS">OUT_OF_FUNDS (Provider balance depleted)</option>
+              <option value="WORKER_DIED">WORKER_DIED (Lease timeout / heartbeat missed)</option>
+              <option value="SHOT_FAILED_3X">SHOT_FAILED_3X (3x render retry exhausted)</option>
+              <option value="RATE_LIMITED">RATE_LIMITED (Concurrency throttled)</option>
+              <option value="BILLING_DISCREPANCY">BILLING_DISCREPANCY (Charge mismatch)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Provider</label>
+            <select id="custom-provider" class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-medium">
+              <option value="runway">Runway Gen-3</option>
+              <option value="pika">Pika 2.0</option>
+              <option value="luma">Luma Dream Machine</option>
+              <option value="elevenlabs">ElevenLabs Audio</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Target Entity / Job ID</label>
+            <input type="text" id="custom-entity-id" value="job_501"
+                   class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Tenant ID</label>
+            <input type="text" id="custom-tenant-id" value="cornflakes_prod"
+                   class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-stone-700 mb-1">Alert Message</label>
+          <textarea id="custom-message" rows="2"
+                    class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white">Provider returned HTTP 402: Account balance insufficient during rendering</textarea>
+        </div>
+
+        <div class="flex items-center space-x-2 pt-1">
+          <input type="checkbox" id="custom-simulate-failure" checked class="rounded border-stone-300 text-amber-600 focus:ring-amber-500">
+          <label for="custom-simulate-failure" class="font-medium text-stone-700">Simulate provider failure in platform state (uncheck to test Trap T10 False Alarm guard)</label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 mt-5">
+        <button onclick="closeCustomAlertModal()" class="px-3.5 py-2 text-xs font-medium text-stone-600 hover:text-stone-800">
+          Cancel
+        </button>
+        <button onclick="submitCustomAlert()" class="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
+          🚀 Run Agent Workflow
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Approval Modal Dialog -->
   <div id="approval-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-2xs hidden items-center justify-center z-50 p-4">
     <div class="corn-card rounded-2xl max-w-md w-full p-6 shadow-xl border border-amber-200 bg-[#FFFDF8]">
       <div class="flex items-center space-x-2.5 mb-3">
         <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">✓</span>
-        <h3 class="text-base font-bold text-ink">Authorize Incident Actions</h3>
+        <h3 class="text-base font-bold text-ink">Authorize Copilot Incident Actions</h3>
       </div>
       <p id="modal-dry-run-summary" class="text-xs text-stone-600 mb-4 bg-amber-50/60 p-3 rounded-lg border border-amber-200/50">
         Reviewing actions...
@@ -217,7 +300,7 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-stone-700 mb-1">Approval Rationale / Notes</label>
-          <input type="text" id="modal-reason" value="Verified tool snapshot; approved according to runbook"
+          <input type="text" id="modal-reason" value="Verified tool snapshot facts; authorized per RB-001 runbook"
                  class="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:border-amber-500 bg-white">
         </div>
       </div>
@@ -227,20 +310,21 @@
           Cancel
         </button>
         <button onclick="submitApproval()" id="modal-submit-btn" class="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
-          Confirm Approval
+          Confirm Authorization
         </button>
       </div>
     </div>
   </div>
 
-  <footer class="border-t border-[#EAE4D3] py-4 px-6 text-center text-xs text-stone-500 bg-[#FFFDF8]">
-    <span>Cornflakes Media Generation Ops Copilot • Evaluator Version 1.0.0 • Strict Deterministic Boundaries</span>
+  <footer class="border-t border-[#EAE4D3] py-3.5 px-6 text-center text-xs text-stone-500 bg-[#FFFDF8]">
+    <span>Cornflakes Media Generation Ops Copilot • Evaluator Version 1.0.0 • Strict Deterministic Boundaries & HITL</span>
   </footer>
 
   <!-- Frontend Client Script -->
   <script>
     let activeIncidentId = null;
-    let eventSource = null;
+    let currentDetailTab = 'trajectory'; // 'trajectory' | 'actions' | 'evidence' | 'events'
+    let currentEventsCache = [];
 
     async function updateClockDisplay() {
       try {
@@ -271,252 +355,70 @@
       loadIncidents();
     }
 
-    async function loadIncidents() {
+    async function clearAllIncidents() {
+      if (!confirm('Clear all incidents and reset simulation state?')) return;
       try {
-        const res = await fetch('/v1/incidents');
-        const incidents = await res.json();
-        
-        let pending = 0;
-        let duplicates = 0;
-        let blocked = 0;
-
-        const listEl = document.getElementById('incident-list');
-        if (incidents.length === 0) {
-          listEl.innerHTML = `
-            <div class="text-xs text-stone-500 p-8 text-center bg-white rounded-xl border border-stone-200">
-              No active incidents. Click a scenario button above to trigger one!
-            </div>`;
-          return;
-        }
-
-        listEl.innerHTML = incidents.map(inc => {
-          if (inc.status === 'AWAITING_APPROVAL') pending++;
-          if (inc.status === 'BLOCKED') blocked++;
-          if (inc.duplicate_count > 1) duplicates += (inc.duplicate_count - 1);
-
-          let badgeClass = 'badge-awaiting';
-          if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
-          if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
-          if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
-
-          const isSelected = inc.incident_id === activeIncidentId;
-          const borderHighlight = isSelected ? 'ring-2 ring-amber-500 border-amber-500' : 'hover:border-amber-300';
-
-          return `
-            <div onclick="selectIncident('${inc.incident_id}')"
-                 class="corn-card rounded-xl p-3.5 cursor-pointer transition ${borderHighlight}">
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-xs font-mono font-bold text-stone-900">${inc.incident_id}</span>
-                <span class="text-2xs font-semibold px-2 py-0.5 rounded-full ${badgeClass}">
-                  ${inc.status}
-                </span>
-              </div>
-              <div class="text-xs font-semibold text-stone-800 truncate">${inc.error_type}</div>
-              <div class="text-2xs text-stone-500 mt-1 flex items-center justify-between">
-                <span>Target: <strong class="text-stone-700">${inc.entity_id}</strong></span>
-                ${inc.duplicate_count > 1 ? `<span class="text-amber-800 font-semibold bg-amber-100 px-1.5 rounded">${inc.duplicate_count}x alerts merged</span>` : ''}
-              </div>
-            </div>
-          `;
-        }).join('');
-
-        document.getElementById('stat-total').innerText = incidents.length;
-        document.getElementById('stat-pending').innerText = pending;
-        document.getElementById('stat-duplicates').innerText = duplicates;
-        document.getElementById('stat-blocked').innerText = blocked;
-
-        if (!activeIncidentId && incidents.length > 0) {
-          selectIncident(incidents[0].incident_id);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    async function selectIncident(id) {
-      activeIncidentId = id;
-      loadIncidentDetail(id);
-      loadIncidents();
-    }
-
-    async function loadIncidentDetail(id) {
-      try {
-        const res = await fetch(`/v1/incidents/${id}`);
-        const inc = await res.json();
-        const state = inc.state_data || {};
-        const evidence = state.evidence || {};
-        const diag = state.diagnosis || {};
-        const actions = state.proposed_actions || [];
-        const policy = state.policy_verdict || {};
-
-        let badgeClass = 'badge-awaiting';
-        if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
-        if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
-        if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
-
-        if (inc.status === 'QUEUED' || inc.status === 'TRIAGED' || inc.status === 'DIAGNOSED') {
-          setTimeout(() => {
-            if (activeIncidentId === id) loadIncidentDetail(id);
-          }, 800);
-        }
-
-        const detailEl = document.getElementById('incident-detail');
-        detailEl.innerHTML = `
-          <!-- Header -->
-          <div class="flex items-start justify-between pb-4 border-b border-stone-200">
-            <div>
-              <div class="flex items-center space-x-2">
-                <h3 class="text-lg font-bold text-ink">${inc.incident_id}</h3>
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}">${inc.status}</span>
-              </div>
-              <p class="text-xs text-stone-500 mt-0.5">Entity: <strong class="text-stone-700">${inc.entity_id}</strong> • Tenant: ${inc.tenant_id}</p>
-            </div>
-            ${inc.status === 'AWAITING_APPROVAL' ? `
-              <div class="flex items-center space-x-2">
-                <button onclick="openApprovalModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
-                  ✓ Approve
-                </button>
-                <button onclick="rejectIncident('${inc.incident_id}')" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg border border-stone-300 transition">
-                  ✕ Reject
-                </button>
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- Section 1: Diagnosis & Runbook Citation -->
-          <div class="mt-4 p-3.5 rounded-xl bg-cream-50 border border-[#EAE4D3]">
-            <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
-            <p class="text-xs text-stone-800 mt-1 font-medium leading-relaxed">
-              ${diag.root_cause || '<span class="flex items-center space-x-2 text-amber-800 animate-pulse font-medium"><span>⚡</span><span>Investigating ground facts with deterministic tools & runbooks...</span></span>'}
-            </p>
-            <div class="mt-2 flex items-center space-x-2 text-2xs text-stone-500">
-              <span>Citations:</span>
-              ${(diag.citations || []).map(c => `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${c}</span>`).join(' ') || 'None'}
-              <span class="ml-auto">Confidence: <strong>${Math.round((diag.confidence || 0.95)*100)}%</strong></span>
-            </div>
-          </div>
-
-          <!-- Section 2: Deterministic Evidence Dossier (with as_of stamps) -->
-          <div class="mt-4">
-            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Deterministic Evidence (Tool Facts)</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-              ${Object.keys(evidence).map(key => {
-                const item = evidence[key];
-                const asOf = item.as_of ? new Date(item.as_of).toLocaleTimeString() : 'N/A';
-                return `
-                  <div class="p-2.5 rounded-lg border border-stone-200 bg-stone-50/50">
-                    <div class="flex items-center justify-between text-2xs font-semibold text-stone-600 mb-1">
-                      <span>${key}</span>
-                      <span class="text-stone-400 font-mono">as_of: ${asOf}</span>
-                    </div>
-                    <pre class="text-3xs font-mono text-stone-800 overflow-x-auto max-h-24 p-1.5 bg-white rounded border border-stone-200/60">${JSON.stringify(item.data || {}, null, 2)}</pre>
-                  </div>
-                `;
-              }).join('') || '<div class="text-xs text-stone-400">No evidence gathered yet.</div>'}
-            </div>
-          </div>
-
-          <!-- Section 3: Proposed Actions & Dry-Run Preview -->
-          <div class="mt-4">
-            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Proposed Actions & Dry-Run</h4>
-            <div class="space-y-2">
-              ${actions.map(act => `
-                <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/30">
-                  <div class="flex items-center justify-between text-xs mb-1">
-                    <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
-                    <span class="text-3xs font-mono text-stone-500">${(act.idempotency_key || '').slice(0, 16)}...</span>
-                  </div>
-                  <div class="text-xs text-stone-700 font-mono text-3xs bg-white p-2 rounded border border-amber-200/50">
-                    ${act.dry_run_preview || act.description || 'Action ready for execution.'}
-                  </div>
-                </div>
-              `).join('') || '<div class="text-xs text-stone-400">No actions formulated.</div>'}
-            </div>
-          </div>
-
-          <!-- Section 4: Policy as Code Verdict -->
-          <div class="mt-4 pt-3 border-t border-stone-200">
-            <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-stone-700">Policy Verdict:</span>
-              <span class="font-bold ${policy.is_blocked ? 'text-rose-700' : 'text-emerald-700'}">
-                ${policy.status || 'PASS'}
-              </span>
-            </div>
-            ${(policy.violations || []).map(v => `
-              <div class="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-200">
-                <strong>[${v.code}]</strong> ${v.message}
-              </div>
-            `).join('')}
-          </div>
-        `;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    function openApprovalModal() {
-      document.getElementById('approval-modal').classList.remove('hidden');
-      document.getElementById('approval-modal').classList.add('flex');
-    }
-
-    function closeApprovalModal() {
-      document.getElementById('approval-modal').classList.add('hidden');
-      document.getElementById('approval-modal').classList.remove('flex');
-    }
-
-    async function resetSimulation() {
-      try {
-        await fetch('/v1/simulation/reset', { method: 'POST' });
+        await fetch('/v1/incidents', { method: 'DELETE' });
+        activeIncidentId = null;
         await resetClock();
         await loadIncidents();
-        alert('Simulation state reset! Providers healthy, ledger cleared.');
+        const detailEl = document.getElementById('incident-detail');
+        detailEl.innerHTML = `
+          <div class="flex flex-col items-center justify-center flex-1 text-center py-20 text-stone-400">
+            <span class="text-4xl mb-2">🧹</span>
+            <p class="text-sm font-semibold text-stone-700">Queue Cleared</p>
+            <p class="text-xs text-stone-500 mt-1">All incidents wiped. Trigger a new scenario or launch a custom incident!</p>
+          </div>`;
       } catch (e) {
-        alert('Reset error: ' + e.message);
+        alert('Clear error: ' + e.message);
       }
     }
 
-    async function submitApproval() {
-      if (!activeIncidentId) return;
-      const approver = document.getElementById('modal-approver').value;
-      const reason = document.getElementById('modal-reason').value;
-
+    async function deleteSingleIncident(id) {
       try {
-        const res = await fetch(`/v1/incidents/${activeIncidentId}/approve`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ approver, reason })
-        });
-        const data = await res.json();
-        closeApprovalModal();
-        if (res.status === 409) {
-          alert(`⚠️ RE-VALIDATION REJECTED (Trap T4):\n${data.rejection_reason || data.message}`);
-        } else if (res.status === 422) {
-          alert(`⚠️ STALE DATA BLOCKED (Trap T6):\n${data.detail?.message || 'Data too old'}`);
-        } else if (res.ok) {
-          // Fast-lane advance through execution & verification
-          await fetch(`/v1/incidents/${activeIncidentId}/advance`, { method: 'POST' });
-        }
-        await loadIncidentDetail(activeIncidentId);
+        await fetch(`/v1/incidents/${id}`, { method: 'DELETE' });
+        if (activeIncidentId === id) activeIncidentId = null;
         await loadIncidents();
       } catch (e) {
-        alert(`Error: ${e.message}`);
+        alert('Delete error: ' + e.message);
       }
     }
 
-    async function rejectIncident(id) {
-      if (!confirm('Are you sure you want to reject this incident?')) return;
-      await fetch(`/v1/incidents/${id}/reject`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ approver: 'ops_admin@cornflakes.com', reason: 'Rejected from dashboard' })
-      });
-      await loadIncidentDetail(id);
-      await loadIncidents();
+    function setDetailTab(tabName) {
+      currentDetailTab = tabName;
+      if (activeIncidentId) loadIncidentDetail(activeIncidentId);
+    }
+
+    function openCustomAlertModal() {
+      document.getElementById('custom-entity-id').value = 'job_' + Math.floor(100 + Math.random() * 900);
+      document.getElementById('custom-alert-modal').classList.remove('hidden');
+      document.getElementById('custom-alert-modal').classList.add('flex');
+    }
+
+    function closeCustomAlertModal() {
+      document.getElementById('custom-alert-modal').classList.add('hidden');
+      document.getElementById('custom-alert-modal').classList.remove('flex');
+    }
+
+    async function submitCustomAlert() {
+      const error_type = document.getElementById('custom-error-type').value;
+      const provider = document.getElementById('custom-provider').value;
+      const entity_id = document.getElementById('custom-entity-id').value;
+      const tenant_id = document.getElementById('custom-tenant-id').value;
+      const message = document.getElementById('custom-message').value;
+      const simulateFailure = document.getElementById('custom-simulate-failure').checked;
+
+      closeCustomAlertModal();
+      await triggerScenario(error_type, entity_id, provider, message, simulateFailure);
+    }
+
+    async function triggerDynamicScenario(error_type, provider, message, simulateFailure = false) {
+      const dynamicJobId = 'job_' + Math.floor(100 + Math.random() * 900);
+      await triggerScenario(error_type, dynamicJobId, provider, message, simulateFailure);
     }
 
     async function triggerScenario(error_type, entity_id, provider, message, is_out_of_funds_simulation = false) {
       try {
-        // Set mock provider state if simulating specific outage or false alarm
         if (is_out_of_funds_simulation && provider) {
           await fetch('/v1/simulation/provider-state', {
             method: 'POST',
@@ -524,7 +426,6 @@
             body: JSON.stringify({ provider_id: provider, status: 'OUT_OF_FUNDS', balance_cents: 0 })
           });
         } else if (!is_out_of_funds_simulation && error_type === 'OUT_OF_FUNDS' && provider) {
-          // Ensure provider is healthy to demonstrate Trap T10 guard
           await fetch('/v1/simulation/provider-state', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -532,7 +433,6 @@
           });
         }
 
-        // Ingest the alert
         const res = await fetch('/v1/incidents', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -587,10 +487,378 @@
         }
         await loadIncidents();
         if (lastId) selectIncident(lastId);
-        alert('Fired 10 duplicate alerts! Checked: Exactly 1 incident created with 10x merged counter.');
+        alert('Fired 10 duplicate alerts! Checked: Merged into exact 1 incident in queue with duplicate counter.');
       } catch (err) {
         alert('Alert storm error: ' + err.message);
       }
+    }
+
+    async function loadIncidents() {
+      try {
+        const res = await fetch('/v1/incidents');
+        const incidents = await res.json();
+        
+        let pending = 0;
+        let duplicates = 0;
+        let blocked = 0;
+
+        const listEl = document.getElementById('incident-list');
+        if (incidents.length === 0) {
+          listEl.innerHTML = `
+            <div class="text-xs text-stone-500 p-8 text-center bg-white rounded-xl border border-stone-200">
+              No active incidents in queue. Click a quick scenario or trigger a custom incident above!
+            </div>`;
+          document.getElementById('stat-total').innerText = 0;
+          document.getElementById('stat-pending').innerText = 0;
+          document.getElementById('stat-duplicates').innerText = 0;
+          document.getElementById('stat-blocked').innerText = 0;
+          return;
+        }
+
+        listEl.innerHTML = incidents.map(inc => {
+          if (inc.status === 'AWAITING_APPROVAL') pending++;
+          if (inc.status === 'BLOCKED') blocked++;
+          if (inc.duplicate_count > 1) duplicates += (inc.duplicate_count - 1);
+
+          let badgeClass = 'badge-awaiting';
+          if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
+          if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
+          if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
+
+          const isSelected = inc.incident_id === activeIncidentId;
+          const borderHighlight = isSelected ? 'ring-2 ring-amber-500 border-amber-500 bg-amber-50/20' : 'hover:border-amber-300';
+
+          return `
+            <div onclick="selectIncident('${inc.incident_id}')"
+                 class="corn-card rounded-xl p-3 cursor-pointer transition relative ${borderHighlight}">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-mono font-bold text-stone-900">${inc.incident_id}</span>
+                <div class="flex items-center space-x-1.5">
+                  <span class="text-2xs font-semibold px-2 py-0.5 rounded-full ${badgeClass}">
+                    ${inc.status}
+                  </span>
+                  <button onclick="event.stopPropagation(); deleteSingleIncident('${inc.incident_id}')"
+                          class="text-stone-300 hover:text-rose-600 font-bold text-xs px-1" title="Delete Incident">
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div class="text-xs font-semibold text-stone-800 truncate">${inc.error_type}</div>
+              <div class="text-2xs text-stone-500 mt-1 flex items-center justify-between">
+                <span>Target: <strong class="text-stone-700">${inc.entity_id}</strong></span>
+                ${inc.duplicate_count > 1 ? `<span class="text-amber-800 font-semibold bg-amber-100 px-1.5 rounded">${inc.duplicate_count}x merged</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('stat-total').innerText = incidents.length;
+        document.getElementById('stat-pending').innerText = pending;
+        document.getElementById('stat-duplicates').innerText = duplicates;
+        document.getElementById('stat-blocked').innerText = blocked;
+
+        if (!activeIncidentId && incidents.length > 0) {
+          selectIncident(incidents[0].incident_id);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function selectIncident(id) {
+      activeIncidentId = id;
+      loadIncidentDetail(id);
+      loadIncidents();
+    }
+
+    async function loadIncidentDetail(id) {
+      try {
+        const res = await fetch(`/v1/incidents/${id}`);
+        const inc = await res.json();
+        const state = inc.state_data || {};
+        const evidence = state.evidence || {};
+        const diag = state.diagnosis || {};
+        const actions = state.proposed_actions || [];
+        const policy = state.policy_verdict || {};
+        const trajectory = state.trajectory || [];
+
+        let badgeClass = 'badge-awaiting';
+        if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
+        if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
+        if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
+
+        if (inc.status === 'QUEUED' || inc.status === 'TRIAGED' || inc.status === 'DIAGNOSED') {
+          setTimeout(() => {
+            if (activeIncidentId === id) loadIncidentDetail(id);
+          }, 800);
+        }
+
+        // Fetch events if on events tab
+        if (currentDetailTab === 'events') {
+          try {
+            const evRes = await fetch(`/v1/incidents/${id}/events`);
+            currentEventsCache = await evRes.json();
+          } catch(e) {
+            currentEventsCache = [];
+          }
+        }
+
+        const detailEl = document.getElementById('incident-detail');
+        detailEl.innerHTML = `
+          <!-- Header -->
+          <div class="flex items-start justify-between pb-3.5 border-b border-stone-200">
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-base font-bold text-ink font-mono">${inc.incident_id}</h3>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}">${inc.status}</span>
+                ${inc.duplicate_count > 1 ? `<span class="text-2xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">${inc.duplicate_count}x alerts merged</span>` : ''}
+              </div>
+              <p class="text-xs text-stone-500 mt-0.5">Entity: <strong class="text-stone-700">${inc.entity_id}</strong> • Tenant: <span class="font-mono">${inc.tenant_id}</span></p>
+            </div>
+            <div class="flex items-center space-x-2">
+              ${inc.status === 'AWAITING_APPROVAL' ? `
+                <button onclick="openApprovalModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                  ✓ Authorize
+                </button>
+                <button onclick="rejectIncident('${inc.incident_id}')" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg border border-stone-300 transition">
+                  ✕ Reject
+                </button>
+              ` : ''}
+              <button onclick="deleteSingleIncident('${inc.incident_id}')" class="px-2.5 py-1.5 bg-white hover:bg-rose-50 text-rose-600 text-xs font-medium rounded-lg border border-stone-200 transition" title="Delete">
+                🗑️
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Bar -->
+          <div class="flex items-center space-x-1 mt-3 border-b border-stone-200 text-xs">
+            <button onclick="setDetailTab('trajectory')"
+                    class="px-3 py-2 font-semibold border-b-2 transition ${currentDetailTab === 'trajectory' ? 'border-amber-600 text-amber-900 bg-amber-50/50 rounded-t' : 'border-transparent text-stone-500 hover:text-stone-800'}">
+              🧠 Agent Trajectory & Reasoning (${trajectory.length || 0})
+            </button>
+            <button onclick="setDetailTab('actions')"
+                    class="px-3 py-2 font-semibold border-b-2 transition ${currentDetailTab === 'actions' ? 'border-amber-600 text-amber-900 bg-amber-50/50 rounded-t' : 'border-transparent text-stone-500 hover:text-stone-800'}">
+              📋 Proposed Actions & Policy (${actions.length})
+            </button>
+            <button onclick="setDetailTab('evidence')"
+                    class="px-3 py-2 font-semibold border-b-2 transition ${currentDetailTab === 'evidence' ? 'border-amber-600 text-amber-900 bg-amber-50/50 rounded-t' : 'border-transparent text-stone-500 hover:text-stone-800'}">
+              🛠️ Tool Evidence (${Object.keys(evidence).length})
+            </button>
+            <button onclick="setDetailTab('events')"
+                    class="px-3 py-2 font-semibold border-b-2 transition ${currentDetailTab === 'events' ? 'border-amber-600 text-amber-900 bg-amber-50/50 rounded-t' : 'border-transparent text-stone-500 hover:text-stone-800'}">
+              📜 Audit Event Stream
+            </button>
+          </div>
+
+          <!-- Tab Content Area -->
+          <div class="mt-4 flex-1 overflow-y-auto max-h-[580px] pr-1">
+            ${renderTabContent(currentDetailTab, inc, state, evidence, diag, actions, policy, trajectory)}
+          </div>
+        `;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderTabContent(tab, inc, state, evidence, diag, actions, policy, trajectory) {
+      if (tab === 'trajectory') {
+        if (!trajectory || trajectory.length === 0) {
+          return `
+            <div class="text-xs text-amber-800 bg-amber-50 p-4 rounded-xl border border-amber-200 flex items-center space-x-2">
+              <span class="animate-spin">🔄</span>
+              <span>Agent workflow active: Gathering evidence, searching runbooks, and evaluating policies...</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="space-y-3.5">
+            ${trajectory.map((step, idx) => `
+              <div class="corn-card rounded-xl p-3.5 border-l-4 ${idx === trajectory.length - 1 ? 'border-l-amber-500 bg-amber-50/20' : 'border-l-stone-300'}">
+                <div class="flex items-center justify-between text-2xs mb-1">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-5 h-5 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center">${step.step || (idx + 1)}</span>
+                    <span class="font-bold text-stone-800">${step.title}</span>
+                    <span class="bg-cream-200 text-cream-900 px-1.5 py-0.5 rounded font-mono font-semibold">${step.actor}</span>
+                  </div>
+                  <span class="text-stone-400 font-mono">${step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : ''}</span>
+                </div>
+
+                <div class="mt-1.5 p-2 rounded-lg bg-cream-50/80 border border-[#EAE4D3] text-xs text-stone-800 font-medium leading-relaxed">
+                  ${step.thought}
+                </div>
+
+                ${step.facts ? `
+                  <div class="mt-2 grid grid-cols-2 gap-1.5 text-3xs font-mono bg-white p-2 rounded border border-stone-200">
+                    <div><strong>Job Exists:</strong> ${step.facts.job_exists}</div>
+                    <div><strong>Failed Shots:</strong> ${step.facts.failed_shots}</div>
+                    <div><strong>Net Charged:</strong> $${(step.facts.net_charged_cents/100).toFixed(2)}</div>
+                    <div><strong>Provider Status:</strong> <span class="font-bold">${step.facts.provider_status}</span></div>
+                  </div>
+                ` : ''}
+
+                ${step.diagnosis ? `
+                  <div class="mt-2 text-xs bg-amber-50/50 p-2 rounded border border-amber-200 text-stone-800">
+                    <strong>Diagnosis:</strong> ${step.diagnosis}
+                  </div>
+                ` : ''}
+
+                ${step.violations && step.violations.length > 0 ? `
+                  <div class="mt-2 space-y-1">
+                    ${step.violations.map(v => `
+                      <div class="text-2xs text-rose-700 bg-rose-50 p-1.5 rounded border border-rose-200 font-medium">
+                        ⛔ <strong>[${v.code}]</strong> ${v.message}
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (tab === 'actions') {
+        return `
+          <div>
+            <!-- Root Cause Summary Box -->
+            <div class="p-3.5 rounded-xl bg-cream-50 border border-[#EAE4D3] mb-4">
+              <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
+              <p class="text-xs text-stone-800 mt-1 font-medium leading-relaxed">
+                ${diag.root_cause || 'Diagnosis active...'}
+              </p>
+              <div class="mt-2 flex items-center space-x-2 text-2xs text-stone-500">
+                <span>Citations:</span>
+                ${(diag.citations || []).map(c => `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${c}</span>`).join(' ') || 'None'}
+                <span class="ml-auto">Confidence: <strong>${Math.round((diag.confidence || 0.95)*100)}%</strong></span>
+              </div>
+            </div>
+
+            <!-- Proposed Actions -->
+            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Formulated Repair Actions</h4>
+            <div class="space-y-2.5">
+              ${actions.map(act => `
+                <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/30">
+                  <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
+                    <span class="text-3xs font-mono text-stone-500" title="Deterministic Idempotency Key">${(act.idempotency_key || '').slice(0, 16)}...</span>
+                  </div>
+                  <div class="text-xs text-stone-700 font-mono text-3xs bg-white p-2 rounded border border-amber-200/50">
+                    ${act.dry_run_preview || act.description || 'Action formulated and ready.'}
+                  </div>
+                </div>
+              `).join('') || '<div class="text-xs text-stone-400">No actions formulated yet.</div>'}
+            </div>
+
+            <!-- Policy Verdict -->
+            <div class="mt-4 pt-3 border-t border-stone-200">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-stone-700">Policy as Code Verdict:</span>
+                <span class="font-bold ${policy.is_blocked ? 'text-rose-700' : 'text-emerald-700'}">
+                  ${policy.status || 'PASS'}
+                </span>
+              </div>
+              ${(policy.violations || []).map(v => `
+                <div class="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                  <strong>[${v.code}]</strong> ${v.message}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (tab === 'evidence') {
+        return `
+          <div>
+            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Deterministic Tool Ground Truth (Stamped with as_of & TTL)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              ${Object.keys(evidence).map(key => {
+                const item = evidence[key];
+                const asOf = item.as_of ? new Date(item.as_of).toLocaleTimeString() : 'N/A';
+                return `
+                  <div class="p-2.5 rounded-lg border border-stone-200 bg-stone-50/50">
+                    <div class="flex items-center justify-between text-2xs font-semibold text-stone-600 mb-1">
+                      <span>${key}</span>
+                      <span class="text-stone-400 font-mono">as_of: ${asOf} (TTL: ${item.ttl_seconds}s)</span>
+                    </div>
+                    <pre class="text-3xs font-mono text-stone-800 overflow-x-auto max-h-28 p-1.5 bg-white rounded border border-stone-200/60">${JSON.stringify(item.data || {}, null, 2)}</pre>
+                  </div>
+                `;
+              }).join('') || '<div class="text-xs text-stone-400">No tool facts gathered yet.</div>'}
+            </div>
+          </div>
+        `;
+      }
+
+      if (tab === 'events') {
+        return `
+          <div>
+            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Immutable Audit Event Trail</h4>
+            <div class="space-y-2">
+              ${currentEventsCache.map(ev => `
+                <div class="p-2.5 rounded-lg border border-stone-200 bg-white text-xs">
+                  <div class="flex items-center justify-between text-2xs mb-1">
+                    <span class="font-bold text-amber-900 font-mono">${ev.event_type}</span>
+                    <span class="text-stone-400 font-mono">${ev.created_at ? new Date(ev.created_at).toLocaleTimeString() : ''}</span>
+                  </div>
+                  <pre class="text-3xs font-mono text-stone-700 bg-stone-50 p-1.5 rounded overflow-x-auto">${JSON.stringify(ev.payload || {}, null, 2)}</pre>
+                </div>
+              `).join('') || '<div class="text-xs text-stone-400">Loading audit events...</div>'}
+            </div>
+          </div>
+        `;
+      }
+
+      return '';
+    }
+
+    function openApprovalModal() {
+      document.getElementById('approval-modal').classList.remove('hidden');
+      document.getElementById('approval-modal').classList.add('flex');
+    }
+
+    function closeApprovalModal() {
+      document.getElementById('approval-modal').classList.add('hidden');
+      document.getElementById('approval-modal').classList.remove('flex');
+    }
+
+    async function submitApproval() {
+      if (!activeIncidentId) return;
+      const approver = document.getElementById('modal-approver').value;
+      const reason = document.getElementById('modal-reason').value;
+
+      try {
+        const res = await fetch(`/v1/incidents/${activeIncidentId}/approve`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ approver, reason })
+        });
+        const data = await res.json();
+        closeApprovalModal();
+        if (res.status === 409) {
+          alert(`⚠️ RE-VALIDATION REJECTED (Trap T4):\n${data.rejection_reason || data.message}`);
+        } else if (res.status === 422) {
+          alert(`⚠️ STALE DATA BLOCKED (Trap T6):\n${data.detail?.message || 'Data too old'}`);
+        } else if (res.ok) {
+          // Fast-lane advance through execution & verification
+          await fetch(`/v1/incidents/${activeIncidentId}/advance`, { method: 'POST' });
+        }
+        await loadIncidentDetail(activeIncidentId);
+        await loadIncidents();
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      }
+    }
+
+    async function rejectIncident(id) {
+      if (!confirm('Are you sure you want to reject this incident?')) return;
+      await fetch(`/v1/incidents/${id}/reject`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ approver: 'ops_admin@cornflakes.com', reason: 'Rejected from dashboard' })
+      });
+      await loadIncidentDetail(id);
+      await loadIncidents();
     }
 
     // Startup

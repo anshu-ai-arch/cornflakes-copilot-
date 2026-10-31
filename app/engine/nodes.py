@@ -55,6 +55,22 @@ async def triage_node(state: IncidentState) -> IncidentState:
     evidence["queue"] = queue_res.model_dump()
 
     state.evidence = evidence
+    state.trajectory = list(state.trajectory or [])
+    state.trajectory.append({
+        "step": 1,
+        "phase": "TRIAGE",
+        "actor": "Tool Orchestrator",
+        "title": "Deterministic Tool Fact Gathering",
+        "thought": f"Alert received: '{state.error_type}' on entity '{state.entity_id}'. Invoking 6 deterministic read tools to establish verified facts of record. (Zero LLM guesswork).",
+        "timestamp": Clock.now_iso(),
+        "facts": {
+            "job_exists": evidence.get("job", {}).get("data", {}).get("exists", False),
+            "failed_shots": evidence.get("shots", {}).get("data", {}).get("failed_shots_count", 0),
+            "net_charged_cents": evidence.get("ledger", {}).get("data", {}).get("net_charged_cents", 0),
+            "provider_status": evidence.get("provider_status", {}).get("data", {}).get("status", "N/A"),
+            "provider_balance_cents": evidence.get("provider_status", {}).get("data", {}).get("balance_cents", 0)
+        }
+    })
     state.current_node = "diagnose"
     state.status = "TRIAGED"
     state.updated_at = Clock.now_iso()
@@ -89,6 +105,28 @@ async def diagnose_node(state: IncidentState) -> IncidentState:
         "is_fallback": res.get("is_fallback", False),
         "diagnosed_at": Clock.now_iso()
     }
+
+    state.trajectory.append({
+        "step": 2,
+        "phase": "RAG_RETRIEVAL",
+        "actor": "BM25 Runbook Engine",
+        "title": "Runbook Retrieval & Citation Grounding",
+        "thought": f"Querying 12 runbooks for '{state.error_type}'. Retrieved matching runbook citations: {res.get('citations', [])}.",
+        "timestamp": Clock.now_iso(),
+        "citations": res.get("citations", []),
+        "confidence": res.get("confidence", 0.95),
+        "is_fallback": res.get("is_fallback", False)
+    })
+    state.trajectory.append({
+        "step": 3,
+        "phase": "LLM_DIAGNOSIS",
+        "actor": "LLM Reasoning Boundary",
+        "title": "Root Cause Synthesis & Safety Guardrails",
+        "thought": "Synthesizing root cause explanation. Enforced citation presence (Trap T11) and normalized hallucinated numbers against tool ground truth (Trap T8).",
+        "timestamp": Clock.now_iso(),
+        "diagnosis": res.get("diagnosis"),
+        "category": category
+    })
 
     state.current_node = "propose"
     state.status = "DIAGNOSED"
@@ -175,6 +213,18 @@ async def propose_node(state: IncidentState) -> IncidentState:
                 })
 
     state.proposed_actions = actions
+    state.trajectory.append({
+        "step": 4,
+        "phase": "PROPOSE",
+        "actor": "Action Planner",
+        "title": "Candidate Action Formulation",
+        "thought": f"Formulated {len(actions)} candidate remediation action(s). Each action stamped with deterministic SHA256 idempotency key to prevent double-execution (Trap T2/T3).",
+        "timestamp": Clock.now_iso(),
+        "actions": [
+            {"action_type": a["action_type"], "target_id": a["target_id"], "idempotency_key": a["idempotency_key"][:16] + "...", "dry_run": a.get("dry_run_preview")}
+            for a in actions
+        ]
+    })
     state.current_node = "policy"
     state.status = "PROPOSED"
     state.updated_at = Clock.now_iso()
@@ -188,6 +238,18 @@ async def policy_node(state: IncidentState) -> IncidentState:
     """
     verdict = PolicyEngine.evaluate_all(state.proposed_actions, state.evidence)
     state.policy_verdict = verdict
+
+    state.trajectory.append({
+        "step": 5,
+        "phase": "POLICY",
+        "actor": "Policy as Code Engine",
+        "title": "Deterministic Policy Validation & Human Gate",
+        "thought": f"Evaluated hard rules: Refund <= Charged (T7), Provider failing check (T10), Human money approval gate. Verdict: {verdict['status']}.",
+        "timestamp": Clock.now_iso(),
+        "is_blocked": verdict["is_blocked"],
+        "requires_human": verdict["requires_human"],
+        "violations": verdict.get("violations", [])
+    })
 
     if verdict["is_blocked"]:
         # Blocked due to policy violation (Trap T7 or Trap T10)
@@ -266,6 +328,14 @@ async def verify_node(state: IncidentState) -> IncidentState:
         "verified_at": Clock.now_iso(),
         "summary": f"Executed {len(state.execution_results)} action(s) successfully."
     }
+    state.trajectory.append({
+        "step": 7,
+        "phase": "VERIFY",
+        "actor": "Verification Agent",
+        "title": "Resolution Verification & Closure",
+        "thought": f"Verified target platform state. All {len(state.execution_results)} authorized action(s) confirmed on platform of record.",
+        "timestamp": Clock.now_iso()
+    })
     state.current_node = "done"
     state.status = "COMPLETED"
     state.updated_at = Clock.now_iso()

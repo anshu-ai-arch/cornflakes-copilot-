@@ -42,6 +42,9 @@ class IncidentState(BaseModel):
     # 7. Verification Node
     verification: Optional[Dict[str, Any]] = None
     
+    # 8. Agent Reasoning Trajectory (Chain of Thought & Tool Trail)
+    trajectory: List[Dict[str, Any]] = Field(default_factory=list)
+    
     # Metadata
     grouped_entities: List[str] = Field(default_factory=list)
     updated_at: str = Field(default_factory=lambda: Clock.now_iso())

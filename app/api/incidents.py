@@ -106,6 +106,40 @@ async def ingest_alert(
     # Generate new incident ID
     incident_id = f"inc_{fingerprint[:12]}"
 
+    # Provision mock platform state if entity_id is a new custom job
+    from mock_platform.state import PlatformState
+    if payload.entity_id.startswith("job_") and payload.entity_id not in PlatformState.jobs:
+        now_iso = Clock.now_iso()
+        PlatformState.jobs[payload.entity_id] = {
+            "job_id": payload.entity_id,
+            "tenant_id": payload.tenant_id,
+            "title": f"Generation Task ({payload.entity_id})",
+            "status": "FAILED",
+            "stage": "video_generation",
+            "provider": payload.provider or "runway",
+            "attempts": 3,
+            "max_attempts": 3,
+            "worker_id": "worker_dynamic_1",
+            "error": payload.message,
+            "actual_charge_cents": 450,
+            "quoted_cost_cents": 450,
+            "created_at": now_iso,
+            "updated_at": now_iso
+        }
+        PlatformState.shots[payload.entity_id] = [
+            {"shot_id": f"{payload.entity_id}_1", "status": "FAILED", "cost_cents": 450, "attempts": 3, "error": payload.message}
+        ]
+        PlatformState.ledger.append({
+            "id": len(PlatformState.ledger) + 1,
+            "job_id": payload.entity_id,
+            "tenant_id": payload.tenant_id,
+            "idempotency_key": f"init_charge_{payload.entity_id}",
+            "amount_cents": 450,
+            "transaction_type": "CHARGE",
+            "reason": "Initial generation charge",
+            "created_at": now_iso
+        })
+
     # Initial state data payload
     initial_state_data = {
         "alert": payload.model_dump(),
@@ -332,6 +366,16 @@ async def approve_incident(
         )
 
     # 3. Valid Approval: Transition to Execution
+    trajectory = list(state_data.get("trajectory", []))
+    trajectory.append({
+        "step": 5.5,
+        "phase": "HITL_APPROVAL",
+        "actor": "Human Operator",
+        "title": "Human Authorization Granted",
+        "thought": f"Authorized by {req.approver}. Operational notes: {req.reason}",
+        "timestamp": now_iso
+    })
+    state_data["trajectory"] = trajectory
     state_data["evidence"] = updated_evidence
     state_data["approval"] = {
         "status": "APPROVED",
@@ -378,6 +422,16 @@ async def reject_incident(
     now = Clock.now()
     now_iso = Clock.now_iso()
     state_data = dict(incident.state_data or {})
+    trajectory = list(state_data.get("trajectory", []))
+    trajectory.append({
+        "step": 5.5,
+        "phase": "HITL_REJECTION",
+        "actor": "Human Operator",
+        "title": "Human Authorization Refused",
+        "thought": f"Rejected by {req.approver}. Operational notes: {req.reason}",
+        "timestamp": now_iso
+    })
+    state_data["trajectory"] = trajectory
     state_data["approval"] = {
         "status": "REJECTED",
         "approver": req.approver,
@@ -465,5 +519,32 @@ async def reset_simulation_endpoint():
     from mock_platform.state import PlatformState
     PlatformState.reset()
     return {"status": "reset"}
+
+
+@router.delete("/incidents")
+async def delete_all_incidents(db: AsyncSession = Depends(get_db_session)):
+    """Deletes all incidents from the queue to start a fresh evaluation."""
+    from app.db.models import Incident, IncidentEvent, IncidentAction
+    from sqlalchemy import delete
+    await db.execute(delete(IncidentAction))
+    await db.execute(delete(IncidentEvent))
+    await db.execute(delete(Incident))
+    await db.commit()
+    from mock_platform.state import PlatformState
+    PlatformState.reset()
+    return {"status": "cleared", "message": "All incidents, actions, and platform state have been wiped clean."}
+
+
+@router.delete("/incidents/{incident_id}")
+async def delete_incident(incident_id: str, db: AsyncSession = Depends(get_db_session)):
+    """Deletes a specific incident from the queue."""
+    stmt = select(Incident).where(Incident.id == incident_id)
+    result = await db.execute(stmt)
+    inc = result.scalars().first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    await db.delete(inc)
+    await db.commit()
+    return {"status": "deleted", "incident_id": incident_id}
 
 

@@ -75,6 +75,15 @@ async def advance_incident_state(
             )
             results.append({"action": act, "result": res})
         state.execution_results = results
+        state.trajectory.append({
+            "step": 6,
+            "phase": "EXECUTE",
+            "actor": "Exactly-Once Executor",
+            "title": "Execution of Authorized Actions",
+            "thought": f"Human authorization verified. Executed {len(results)} action(s) via ExactlyOnceExecutor. Target platform ledger written atomically with idempotency protection.",
+            "timestamp": Clock.now_iso(),
+            "results_count": len(results)
+        })
         state.current_node = "verify"
         state.status = "EXECUTED"
         state.updated_at = Clock.now_iso()
