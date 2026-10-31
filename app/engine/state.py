@@ -45,6 +45,18 @@ class IncidentState(BaseModel):
     # 8. Agent Reasoning Trajectory (Chain of Thought & Tool Trail)
     trajectory: List[Dict[str, Any]] = Field(default_factory=list)
     
+    # 9. Resource Cost Caps (Requirement 13)
+    cost_cents: int = 0
+    tool_calls_count: int = 0
+    
+    # 10. Escalation Status (Requirement 15)
+    is_escalated: bool = False
+    escalated_at: Optional[str] = None
+    
+    # 11. Replay Metadata (Requirement 19)
+    is_replay: bool = False
+    replay_source_id: Optional[str] = None
+
     # Metadata
     grouped_entities: List[str] = Field(default_factory=list)
     updated_at: str = Field(default_factory=lambda: Clock.now_iso())

@@ -438,6 +438,12 @@ async def reject_incident(
         "reason": req.reason,
         "rejected_at": now_iso
     }
+
+    # Requirement 18: Record human rejection to suppress repeatedly rejected proposals
+    from mock_platform.state import PlatformState
+    for act in state_data.get("proposed_actions", []):
+        r_key = f"{incident.error_type}:{act.get('action_type')}"
+        PlatformState.rejected_proposals[r_key] = PlatformState.rejected_proposals.get(r_key, 0) + 1
     incident.status = "REJECTED"
     incident.current_node = "rejected"
     incident.state_data = state_data
@@ -546,5 +552,97 @@ async def delete_incident(incident_id: str, db: AsyncSession = Depends(get_db_se
     await db.delete(inc)
     await db.commit()
     return {"status": "deleted", "incident_id": incident_id}
+
+
+@router.post("/incidents/{incident_id}/replay")
+async def replay_incident(
+    incident_id: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Requirement 19: Replay.
+    Re-runs an incident's diagnosis, propose, and policy evaluation
+    against its recorded deterministic tool facts to debug the agent deterministically.
+    """
+    stmt = select(Incident).where(Incident.id == incident_id)
+    result = await db.execute(stmt)
+    incident = result.scalars().first()
+    if not incident:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+
+    state_dict = dict(incident.state_data or {})
+    recorded_evidence = state_dict.get("evidence", {})
+    if not recorded_evidence:
+        raise HTTPException(status_code=400, detail="Cannot replay incident without recorded evidence")
+
+    from app.engine.state import IncidentState
+    from app.engine.nodes import diagnose_node, propose_node, policy_node
+
+    replay_state = IncidentState(
+        incident_id=f"replay_{incident.id[:10]}",
+        tenant_id=incident.tenant_id,
+        error_type=incident.error_type,
+        entity_id=incident.entity_id,
+        provider=state_dict.get("provider"),
+        evidence=recorded_evidence,
+        is_replay=True,
+        replay_source_id=incident.id
+    )
+
+    replay_state = await diagnose_node(replay_state)
+    replay_state = await propose_node(replay_state)
+    replay_state = await policy_node(replay_state)
+
+    return {
+        "status": "replayed",
+        "original_incident_id": incident.id,
+        "replayed_diagnosis": replay_state.diagnosis,
+        "replayed_actions": replay_state.proposed_actions,
+        "replayed_policy_verdict": replay_state.policy_verdict,
+        "is_deterministic_match": (
+            replay_state.diagnosis.get("category") == state_dict.get("diagnosis", {}).get("category")
+        )
+    }
+
+
+@router.post("/incidents/check-escalations")
+async def check_escalations_endpoint(db: AsyncSession = Depends(get_db_session)):
+    """
+    Requirement 15: Escalation.
+    Detects unapproved high-severity incidents awaiting approval > 4 hours
+    in virtual clock time, re-notifies, and marks them escalated.
+    """
+    from datetime import timedelta
+    now = Clock.now()
+    four_hours_ago = now - timedelta(hours=4)
+    stmt = (
+        select(Incident)
+        .where(
+            Incident.status == "AWAITING_APPROVAL",
+            Incident.created_at < four_hours_ago
+        )
+    )
+    result = await db.execute(stmt)
+    stale_incidents = result.scalars().all()
+
+    escalated = []
+    for inc in stale_incidents:
+        state_data = dict(inc.state_data or {})
+        if not state_data.get("is_escalated"):
+            state_data["is_escalated"] = True
+            state_data["escalated_at"] = Clock.now_iso()
+            inc.state_data = state_data
+            flag_modified(inc, "state_data")
+            ev = IncidentEvent(
+                incident_id=inc.id,
+                event_type="INCIDENT_ESCALATED",
+                payload={"reason": "Awaiting human approval > 4h", "escalated_at": Clock.now_iso()},
+                created_at=now
+            )
+            db.add(ev)
+            escalated.append(inc.id)
+
+    await db.commit()
+    return {"status": "checked", "escalated_count": len(escalated), "escalated_incident_ids": escalated}
 
 

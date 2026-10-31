@@ -191,5 +191,8 @@ class MockPlatformState:
         # Action execution audit store (Keyed by Idempotency Key - For Trap T2 & T3)
         self.executed_actions: Dict[str, Dict[str, Any]] = {}
 
+        # Learning from human rejection outcomes (Requirement 18)
+        self.rejected_proposals: Dict[str, int] = {}
+
 
 PlatformState = MockPlatformState.get_instance()

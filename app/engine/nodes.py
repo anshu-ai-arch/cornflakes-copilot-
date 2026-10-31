@@ -212,6 +212,16 @@ async def propose_node(state: IncidentState) -> IncidentState:
                     "description": f"Retry failed shot '{shot_id}'."
                 })
 
+    # Requirement 18: Learning from outcomes - suppress proposals humans repeatedly rejected
+    from mock_platform.state import PlatformState
+    learned_actions = []
+    for act in actions:
+        r_key = f"{state.error_type}:{act['action_type']}"
+        if PlatformState.rejected_proposals.get(r_key, 0) >= 5:
+            continue
+        learned_actions.append(act)
+    actions = learned_actions
+
     state.proposed_actions = actions
     state.trajectory.append({
         "step": 4,
