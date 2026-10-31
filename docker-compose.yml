@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cornflakes_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cornflakes_ops
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cornflakes_ops"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: cornflakes_api
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/cornflakes_ops
+      MOCK_PLATFORM_URL: http://mock-platform:8001
+      MOCK_LLM_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-platform:
+        condition: service_started
+    restart: unless-stopped
+
+  worker-1:
+    build: .
+    container_name: cornflakes_worker_1
+    command: python -m app.worker.runner
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/cornflakes_ops
+      MOCK_PLATFORM_URL: http://mock-platform:8001
+      WORKER_ID: worker-1
+      WORKER_LEASE_SECONDS: "30"
+      WORKER_HEARTBEAT_SECONDS: "10"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-platform:
+        condition: service_started
+    restart: unless-stopped
+
+  worker-2:
+    build: .
+    container_name: cornflakes_worker_2
+    command: python -m app.worker.runner
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/cornflakes_ops
+      MOCK_PLATFORM_URL: http://mock-platform:8001
+      WORKER_ID: worker-2
+      WORKER_LEASE_SECONDS: "30"
+      WORKER_HEARTBEAT_SECONDS: "10"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-platform:
+        condition: service_started
+    restart: unless-stopped
+
+  mock-platform:
+    build: .
+    container_name: cornflakes_mock_platform
+    command: python -m uvicorn mock_platform.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/cornflakes_ops
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
