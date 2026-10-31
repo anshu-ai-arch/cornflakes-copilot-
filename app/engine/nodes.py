@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.engine.state import IncidentState
 from app.tools.deterministic import DeterministicTools, ActionClient
 from app.llm.boundary import execute_diagnose_boundary
+from app.engine.policy import PolicyEngine
 
 
 async def triage_node(state: IncidentState) -> IncidentState:
@@ -182,34 +183,22 @@ async def propose_node(state: IncidentState) -> IncidentState:
 
 async def policy_node(state: IncidentState) -> IncidentState:
     """
-    POLICY NODE: Evaluates proposed actions against hard business policies.
+    POLICY NODE: Evaluates proposed actions against hard business policies via PolicyEngine.
+    Enforces refund caps (T7), provider health checks (T10), and auto-approve allowlists (Req 9).
     """
-    actions = state.proposed_actions
-    requires_human = False
-    violations = []
-
-    for act in actions:
-        # Rule 1: Financial actions always require human
-        if act["action_type"] in ["refund_credits", "disable_provider"]:
-            act["requires_human"] = True
-            requires_human = True
-        elif act.get("requires_human", False):
-            requires_human = True
-
-    verdict = {
-        "status": "APPROVED_BY_POLICY",
-        "requires_human": requires_human,
-        "violations": violations,
-        "evaluated_at": Clock.now_iso()
-    }
+    verdict = PolicyEngine.evaluate_all(state.proposed_actions, state.evidence)
     state.policy_verdict = verdict
 
-    if requires_human:
+    if verdict["is_blocked"]:
+        # Blocked due to policy violation (Trap T7 or Trap T10)
+        state.current_node = "blocked"
+        state.status = "BLOCKED"
+    elif verdict["requires_human"]:
         # Pauses state machine in DB! No worker memory held (Trap T5)
         state.current_node = "await_approval"
         state.status = "AWAITING_APPROVAL"
     else:
-        # Safe to proceed directly
+        # Safe auto-approved action (Requirement 9)
         state.current_node = "execute"
         state.status = "APPROVED_AUTO"
 

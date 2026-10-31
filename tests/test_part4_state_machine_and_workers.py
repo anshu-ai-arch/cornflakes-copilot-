@@ -43,8 +43,8 @@ async def test_state_machine_progression_to_approval(test_session_factory):
     Verify linear node progression: triage -> diagnose -> propose -> policy -> await_approval.
     Check that state checkpoints are persisted in DB after every node.
     """
+    PlatformState.providers["runway"]["status"] = "OUT_OF_FUNDS"
     async with test_session_factory() as session:
-        # Create an incident for job_101
         now = Clock.now()
         incident = Incident(
             id="inc_progression_1",
@@ -113,6 +113,7 @@ async def test_t5_survives_restarts_while_awaiting_approval(test_session_factory
     Expected: Incident resumes in the exact same state without loss.
     """
     # 1. Setup incident that has progressed to AWAITING_APPROVAL
+    PlatformState.providers["runway"]["status"] = "OUT_OF_FUNDS"
     async with test_session_factory() as session:
         now = Clock.now()
         incident = Incident(
