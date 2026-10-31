@@ -65,7 +65,19 @@ async def advance_incident_state(
             )
             db.add(action_row)
     elif current_node == "execute":
-        state = await execute_node(state)
+        from app.engine.executor import ExactlyOnceExecutor
+        results = []
+        for act in state.proposed_actions:
+            res = await ExactlyOnceExecutor.execute_action(
+                action_dict=act,
+                incident_id=incident.id,
+                db=db
+            )
+            results.append({"action": act, "result": res})
+        state.execution_results = results
+        state.current_node = "verify"
+        state.status = "EXECUTED"
+        state.updated_at = Clock.now_iso()
     elif current_node == "verify":
         state = await verify_node(state)
     else:
