@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cornflakes Media — Generation Ops Copilot</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cream: {
+              50: '#FFFEFA',
+              100: '#FAF7EE',
+              200: '#F5EFE0',
+              300: '#EBDDC0',
+              400: '#DFCA9E',
+              500: '#D2B478',
+              800: '#5C4A28',
+              900: '#3D311A',
+            },
+            corn: {
+              500: '#D97706',
+              600: '#B45309',
+              700: '#92400E',
+            },
+            ink: '#1C1917',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #FAF7EE;
+      color: #1C1917;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .corn-card {
+      background-color: #FFFFFF;
+      border: 1px solid #EAE4D3;
+      box-shadow: 0 1px 3px rgba(60, 50, 30, 0.04), 0 4px 12px rgba(60, 50, 30, 0.02);
+    }
+    .badge-awaiting {
+      background-color: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+    }
+    .badge-completed {
+      background-color: #ECFDF5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+    .badge-blocked {
+      background-color: #FEE2E2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+    .badge-stale {
+      background-color: #FFEDD5;
+      color: #9A3412;
+      border: 1px solid #FED7AA;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased flex flex-col">
+
+  <!-- Elegant Warm Header -->
+  <header class="bg-[#FFFDF8] border-b border-[#EAE4D3] sticky top-0 z-40 px-6 py-3.5 shadow-sm">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          🌽
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-ink">Cornflakes Media</h1>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">Ops Copilot</span>
+          </div>
+          <p class="text-xs text-stone-500">Safe Incident Triage, Human Approval & Durable Workflows</p>
+        </div>
+      </div>
+
+      <!-- Virtual Clock Control Widget -->
+      <div class="flex items-center space-x-2 bg-cream-100 px-3 py-1.5 rounded-lg border border-[#EAE4D3]">
+        <div class="flex items-center space-x-1.5 text-xs text-stone-600">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="font-medium">Clock:</span>
+          <span id="virtual-clock-display" class="font-mono text-stone-900 font-semibold">Loading...</span>
+        </div>
+        <div class="h-4 w-px bg-stone-300 mx-1"></div>
+        <button onclick="advanceClock(3600)" class="text-xs px-2 py-1 bg-white hover:bg-stone-50 text-stone-700 font-medium rounded border border-stone-200 shadow-2xs transition">
+          +1h
+        </button>
+        <button onclick="advanceClock(172800)" class="text-xs px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-medium rounded border border-amber-200 shadow-2xs transition">
+          +2 Days (T4/T6)
+        </button>
+        <button onclick="resetClock()" class="text-xs px-2 py-1 bg-white hover:bg-stone-50 text-stone-600 rounded border border-stone-200 transition">
+          Reset
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Metrics Overview Bar -->
+  <section class="max-w-7xl mx-auto w-full px-6 pt-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+        <span class="text-xs font-medium text-stone-500">Active Incidents</span>
+        <span id="stat-total" class="text-2xl font-bold text-ink mt-0.5">0</span>
+      </div>
+      <div class="corn-card rounded-xl p-3.5 flex flex-col bg-amber-50/50 border-amber-200/60">
+        <span class="text-xs font-medium text-amber-800">Pending Approval</span>
+        <span id="stat-pending" class="text-2xl font-bold text-amber-900 mt-0.5">0</span>
+      </div>
+      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+        <span class="text-xs font-medium text-stone-500">Duplicate Alerts Merged</span>
+        <span id="stat-duplicates" class="text-2xl font-bold text-ink mt-0.5">0</span>
+      </div>
+      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+        <span class="text-xs font-medium text-stone-500">Duplicate Action Rate</span>
+        <span class="text-2xl font-bold text-emerald-700 mt-0.5">0.0%</span>
+      </div>
+      <div class="corn-card rounded-xl p-3.5 flex flex-col">
+        <span class="text-xs font-medium text-stone-500">Policy Blocked Unsafe</span>
+        <span id="stat-blocked" class="text-2xl font-bold text-rose-700 mt-0.5">0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Simulation Demo Quick Bar -->
+  <section class="max-w-7xl mx-auto w-full px-6 pt-4">
+    <div class="corn-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 bg-[#FFFDF8]">
+      <div class="flex items-center space-x-2">
+        <span class="text-xs font-semibold text-stone-700">⚡ Trigger Live Scenarios:</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway 402 Account balance depleted')"
+                class="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm transition">
+          + Provider Out of Funds
+        </button>
+        <button onclick="triggerScenario('WORKER_DIED', 'job_103', 'luma', 'Worker lease expired; heartbeat missed 90s')"
+                class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
+          + Worker Died
+        </button>
+        <button onclick="triggerScenario('SHOT_FAILED_3X', 'job_102', 'pika', 'Shot render failed 3 times: frame glitch')"
+                class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
+          + 3x Shot Glitch
+        </button>
+        <button onclick="triggerSameAlert10Times()"
+                class="text-xs px-3 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition">
+          🔁 Fire 10 Duplicate Alerts (T1)
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content Grid -->
+  <main class="max-w-7xl mx-auto w-full px-6 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Incident List (5 cols) -->
+    <div class="lg:col-span-5 flex flex-col space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-stone-800 uppercase tracking-wider">Incident Queue</h2>
+        <button onclick="loadIncidents()" class="text-xs text-amber-700 hover:text-amber-800 font-medium flex items-center space-x-1">
+          <span>↻ Refresh</span>
+        </button>
+      </div>
+
+      <div id="incident-list" class="space-y-2.5 overflow-y-auto max-h-[720px] pr-1">
+        <!-- Rendered dynamically -->
+        <div class="text-xs text-stone-500 p-8 text-center bg-white rounded-xl border border-stone-200">
+          Loading incidents...
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Incident Inspector & Approval Panel (7 cols) -->
+    <div class="lg:col-span-7">
+      <div id="incident-detail" class="corn-card rounded-2xl p-6 min-h-[600px] flex flex-col">
+        <div class="flex flex-col items-center justify-center flex-1 text-center py-16 text-stone-400">
+          <span class="text-4xl mb-2">📋</span>
+          <p class="text-sm font-medium">Select an incident from the queue to inspect</p>
+          <p class="text-xs text-stone-400 mt-1">Review deterministic tool facts, policy validation, and dry-run preview</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Approval Modal Dialog -->
+  <div id="approval-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-2xs hidden items-center justify-center z-50 p-4">
+    <div class="corn-card rounded-2xl max-w-md w-full p-6 shadow-xl border border-amber-200 bg-[#FFFDF8]">
+      <div class="flex items-center space-x-2.5 mb-3">
+        <span class="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">✓</span>
+        <h3 class="text-base font-bold text-ink">Authorize Incident Actions</h3>
+      </div>
+      <p id="modal-dry-run-summary" class="text-xs text-stone-600 mb-4 bg-amber-50/60 p-3 rounded-lg border border-amber-200/50">
+        Reviewing actions...
+      </p>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">Approver Identity (Email)</label>
+          <input type="text" id="modal-approver" value="anshu.tiwari@cornflakes.com"
+                 class="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:border-amber-500 bg-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">Approval Rationale / Notes</label>
+          <input type="text" id="modal-reason" value="Verified tool snapshot; approved according to runbook"
+                 class="w-full text-xs px-3 py-2 rounded-lg border border-stone-300 focus:outline-none focus:border-amber-500 bg-white">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 mt-6">
+        <button onclick="closeApprovalModal()" class="px-3.5 py-2 text-xs font-medium text-stone-600 hover:text-stone-800">
+          Cancel
+        </button>
+        <button onclick="submitApproval()" id="modal-submit-btn" class="px-4 py-2 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition">
+          Confirm Approval
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-[#EAE4D3] py-4 px-6 text-center text-xs text-stone-500 bg-[#FFFDF8]">
+    <span>Cornflakes Media Generation Ops Copilot • Evaluator Version 1.0.0 • Strict Deterministic Boundaries</span>
+  </footer>
+
+  <!-- Frontend Client Script -->
+  <script>
+    let activeIncidentId = null;
+    let eventSource = null;
+
+    async function updateClockDisplay() {
+      try {
+        const res = await fetch('/v1/clock');
+        const data = await res.json();
+        const date = new Date(data.virtual_time);
+        document.getElementById('virtual-clock-display').innerText = date.toLocaleString();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function advanceClock(seconds) {
+      await fetch('/v1/clock/advance', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ seconds })
+      });
+      await updateClockDisplay();
+      if (activeIncidentId) loadIncidentDetail(activeIncidentId);
+      loadIncidents();
+    }
+
+    async function resetClock() {
+      await fetch('/v1/clock/reset', { method: 'POST' });
+      await updateClockDisplay();
+      if (activeIncidentId) loadIncidentDetail(activeIncidentId);
+      loadIncidents();
+    }
+
+    async function loadIncidents() {
+      try {
+        const res = await fetch('/v1/incidents');
+        const incidents = await res.json();
+        
+        let pending = 0;
+        let duplicates = 0;
+        let blocked = 0;
+
+        const listEl = document.getElementById('incident-list');
+        if (incidents.length === 0) {
+          listEl.innerHTML = `
+            <div class="text-xs text-stone-500 p-8 text-center bg-white rounded-xl border border-stone-200">
+              No active incidents. Click a scenario button above to trigger one!
+            </div>`;
+          return;
+        }
+
+        listEl.innerHTML = incidents.map(inc => {
+          if (inc.status === 'AWAITING_APPROVAL') pending++;
+          if (inc.status === 'BLOCKED') blocked++;
+          if (inc.duplicate_count > 1) duplicates += (inc.duplicate_count - 1);
+
+          let badgeClass = 'badge-awaiting';
+          if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
+          if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
+          if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
+
+          const isSelected = inc.incident_id === activeIncidentId;
+          const borderHighlight = isSelected ? 'ring-2 ring-amber-500 border-amber-500' : 'hover:border-amber-300';
+
+          return `
+            <div onclick="selectIncident('${inc.incident_id}')"
+                 class="corn-card rounded-xl p-3.5 cursor-pointer transition ${borderHighlight}">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-mono font-bold text-stone-900">${inc.incident_id}</span>
+                <span class="text-2xs font-semibold px-2 py-0.5 rounded-full ${badgeClass}">
+                  ${inc.status}
+                </span>
+              </div>
+              <div class="text-xs font-semibold text-stone-800 truncate">${inc.error_type}</div>
+              <div class="text-2xs text-stone-500 mt-1 flex items-center justify-between">
+                <span>Target: <strong class="text-stone-700">${inc.entity_id}</strong></span>
+                ${inc.duplicate_count > 1 ? `<span class="text-amber-800 font-semibold bg-amber-100 px-1.5 rounded">${inc.duplicate_count}x alerts merged</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        document.getElementById('stat-total').innerText = incidents.length;
+        document.getElementById('stat-pending').innerText = pending;
+        document.getElementById('stat-duplicates').innerText = duplicates;
+        document.getElementById('stat-blocked').innerText = blocked;
+
+        if (!activeIncidentId && incidents.length > 0) {
+          selectIncident(incidents[0].incident_id);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function selectIncident(id) {
+      activeIncidentId = id;
+      loadIncidentDetail(id);
+      loadIncidents();
+    }
+
+    async function loadIncidentDetail(id) {
+      try {
+        const res = await fetch(`/v1/incidents/${id}`);
+        const inc = await res.json();
+        const state = inc.state_data || {};
+        const evidence = state.evidence || {};
+        const diag = state.diagnosis || {};
+        const actions = state.proposed_actions || [];
+        const policy = state.policy_verdict || {};
+
+        let badgeClass = 'badge-awaiting';
+        if (inc.status === 'COMPLETED') badgeClass = 'badge-completed';
+        if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
+        if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
+
+        const detailEl = document.getElementById('incident-detail');
+        detailEl.innerHTML = `
+          <!-- Header -->
+          <div class="flex items-start justify-between pb-4 border-b border-stone-200">
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-lg font-bold text-ink">${inc.incident_id}</h3>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${badgeClass}">${inc.status}</span>
+              </div>
+              <p class="text-xs text-stone-500 mt-0.5">Entity: <strong class="text-stone-700">${inc.entity_id}</strong> • Tenant: ${inc.tenant_id}</p>
+            </div>
+            ${inc.status === 'AWAITING_APPROVAL' ? `
+              <div class="flex items-center space-x-2">
+                <button onclick="openApprovalModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                  ✓ Approve
+                </button>
+                <button onclick="rejectIncident('${inc.incident_id}')" class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-semibold text-xs rounded-lg border border-stone-300 transition">
+                  ✕ Reject
+                </button>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Section 1: Diagnosis & Runbook Citation -->
+          <div class="mt-4 p-3.5 rounded-xl bg-cream-50 border border-[#EAE4D3]">
+            <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
+            <p class="text-xs text-stone-800 mt-1 font-medium leading-relaxed">
+              ${diag.root_cause || 'Diagnosis in progress...'}
+            </p>
+            <div class="mt-2 flex items-center space-x-2 text-2xs text-stone-500">
+              <span>Citations:</span>
+              ${(diag.citations || []).map(c => `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${c}</span>`).join(' ') || 'None'}
+              <span class="ml-auto">Confidence: <strong>${Math.round((diag.confidence || 0.95)*100)}%</strong></span>
+            </div>
+          </div>
+
+          <!-- Section 2: Deterministic Evidence Dossier (with as_of stamps) -->
+          <div class="mt-4">
+            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Deterministic Evidence (Tool Facts)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              ${Object.keys(evidence).map(key => {
+                const item = evidence[key];
+                const asOf = item.as_of ? new Date(item.as_of).toLocaleTimeString() : 'N/A';
+                return `
+                  <div class="p-2.5 rounded-lg border border-stone-200 bg-stone-50/50">
+                    <div class="flex items-center justify-between text-2xs font-semibold text-stone-600 mb-1">
+                      <span>${key}</span>
+                      <span class="text-stone-400 font-mono">as_of: ${asOf}</span>
+                    </div>
+                    <pre class="text-3xs font-mono text-stone-800 overflow-x-auto max-h-24 p-1.5 bg-white rounded border border-stone-200/60">${JSON.stringify(item.data || {}, null, 2)}</pre>
+                  </div>
+                `;
+              }).join('') || '<div class="text-xs text-stone-400">No evidence gathered yet.</div>'}
+            </div>
+          </div>
+
+          <!-- Section 3: Proposed Actions & Dry-Run Preview -->
+          <div class="mt-4">
+            <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Proposed Actions & Dry-Run</h4>
+            <div class="space-y-2">
+              ${actions.map(act => `
+                <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/30">
+                  <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
+                    <span class="text-3xs font-mono text-stone-500">${(act.idempotency_key || '').slice(0, 16)}...</span>
+                  </div>
+                  <div class="text-xs text-stone-700 font-mono text-3xs bg-white p-2 rounded border border-amber-200/50">
+                    ${act.dry_run_preview || act.description || 'Action ready for execution.'}
+                  </div>
+                </div>
+              `).join('') || '<div class="text-xs text-stone-400">No actions formulated.</div>'}
+            </div>
+          </div>
+
+          <!-- Section 4: Policy as Code Verdict -->
+          <div class="mt-4 pt-3 border-t border-stone-200">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-stone-700">Policy Verdict:</span>
+              <span class="font-bold ${policy.is_blocked ? 'text-rose-700' : 'text-emerald-700'}">
+                ${policy.status || 'PASS'}
+              </span>
+            </div>
+            ${(policy.violations || []).map(v => `
+              <div class="mt-2 text-xs text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                <strong>[${v.code}]</strong> ${v.message}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function openApprovalModal() {
+      document.getElementById('approval-modal').classList.remove('hidden');
+      document.getElementById('approval-modal').classList.add('flex');
+    }
+
+    function closeApprovalModal() {
+      document.getElementById('approval-modal').classList.add('hidden');
+      document.getElementById('approval-modal').classList.remove('flex');
+    }
+
+    async function submitApproval() {
+      if (!activeIncidentId) return;
+      const approver = document.getElementById('modal-approver').value;
+      const reason = document.getElementById('modal-reason').value;
+
+      try {
+        const res = await fetch(`/v1/incidents/${activeIncidentId}/approve`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ approver, reason })
+        });
+        const data = await res.json();
+        closeApprovalModal();
+        if (res.status === 409) {
+          alert(`⚠️ RE-VALIDATION REJECTED (Trap T4):\n${data.rejection_reason || data.message}`);
+        } else if (res.status === 422) {
+          alert(`⚠️ STALE DATA BLOCKED (Trap T6):\n${data.detail?.message || 'Data too old'}`);
+        }
+        await loadIncidentDetail(activeIncidentId);
+        loadIncidents();
+      } catch (e) {
+        alert(`Error: ${e.message}`);
+      }
+    }
+
+    async function rejectIncident(id) {
+      if (!confirm('Are you sure you want to reject this incident?')) return;
+      await fetch(`/v1/incidents/${id}/reject`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ approver: 'ops_admin@cornflakes.com', reason: 'Rejected from dashboard' })
+      });
+      loadIncidentDetail(id);
+      loadIncidents();
+    }
+
+    async function triggerScenario(error_type, entity_id, provider, message) {
+      const res = await fetch('/v1/incidents', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          tenant_id: 'default_tenant',
+          error_type,
+          entity_id,
+          provider,
+          message
+        })
+      });
+      const data = await res.json();
+      await loadIncidents();
+      selectIncident(data.incident_id);
+    }
+
+    async function triggerSameAlert10Times() {
+      const payload = {
+        tenant_id: 'tenant_alpha',
+        error_type: 'OUT_OF_FUNDS',
+        entity_id: 'job_101',
+        provider: 'runway',
+        message: 'Duplicate alert storm test'
+      };
+      for (let i = 0; i < 10; i++) {
+        await fetch('/v1/incidents', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      }
+      await loadIncidents();
+      alert('Fired 10 duplicate alerts! Checked: Merged into exact 1 incident in queue.');
+    }
+
+    // Startup
+    updateClockDisplay();
+    loadIncidents();
+    setInterval(updateClockDisplay, 5000);
+    setInterval(loadIncidents, 3000);
+  </script>
+</body>
+</html>

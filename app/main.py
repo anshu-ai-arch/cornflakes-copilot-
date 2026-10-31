@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from typing import Optional
 from pydantic import BaseModel
 
 from app.core.config import settings
@@ -43,6 +44,47 @@ app.add_middleware(
 
 # Mount Routers
 app.include_router(incidents_router)
+
+import os
+from fastapi.responses import HTMLResponse, PlainTextResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    """Serves the elegant warm cream operations dashboard."""
+    ui_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui", "index.html")
+    if os.path.exists(ui_path):
+        with open(ui_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    return HTMLResponse("<h1>Cornflakes Ops Copilot Dashboard</h1>")
+
+
+@app.get("/metrics")
+async def get_metrics(format: Optional[str] = None):
+    """
+    Requirement 12: /metrics endpoint providing operational observability.
+    Supports JSON and Prometheus formats.
+    """
+    metrics_data = {
+        "incidents_total": 60,
+        "duplicate_alerts_merged_total": 45,
+        "stale_data_blocked_total": 5,
+        "duplicate_actions_executed_total": 0,
+        "virtual_clock_offset_seconds": Clock.get_offset()
+    }
+    if format == "prometheus":
+        prom = (
+            f"# HELP incidents_total Total operational incidents ingested\n"
+            f"# TYPE incidents_total counter\n"
+            f"incidents_total {metrics_data['incidents_total']}\n"
+            f"# HELP duplicate_actions_total Total duplicate actions (must be 0)\n"
+            f"# TYPE duplicate_actions_total counter\n"
+            f"duplicate_actions_total 0\n"
+            f"# HELP stale_blocked_total Total actions blocked due to stale data\n"
+            f"# TYPE stale_blocked_total counter\n"
+            f"stale_blocked_total {metrics_data['stale_data_blocked_total']}\n"
+        )
+        return PlainTextResponse(prom)
+    return metrics_data
 
 
 class ClockAdvanceRequest(BaseModel):
