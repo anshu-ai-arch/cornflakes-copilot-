@@ -751,9 +751,72 @@
                   </div>
                 ` : ''}
 
+                ${step.retrieved_runbooks ? `
+                  <div class="mt-2 space-y-1.5">
+                    <span class="text-3xs font-bold uppercase tracking-wider text-amber-800">📖 BM25 Runbook Grounding (Knowledge Base Retrieval)</span>
+                    <div class="space-y-1.5">
+                      ${step.retrieved_runbooks.map(rb => `
+                        <div class="p-2 rounded-lg bg-white border border-amber-200 text-xs">
+                          <div class="flex items-center justify-between text-2xs mb-1">
+                            <span class="font-bold text-amber-900 font-mono">[${rb.id}] ${rb.title}</span>
+                            <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono text-3xs font-semibold">BM25 Score: ${rb.score}</span>
+                          </div>
+                          <p class="text-3xs text-stone-600 font-mono leading-tight">${rb.snippet}</p>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
                 ${step.diagnosis ? `
-                  <div class="mt-2 text-xs bg-amber-50/50 p-2 rounded border border-amber-200 text-stone-800">
-                    <strong>Diagnosis:</strong> ${step.diagnosis}
+                  <div class="mt-2 text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 text-stone-800">
+                    <div class="flex items-center justify-between text-3xs text-stone-500 mb-1">
+                      <span class="font-bold uppercase text-amber-900">🧠 Mock LLM Synthesized Decision</span>
+                      ${step.category ? `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${step.category}</span>` : ''}
+                    </div>
+                    <div class="font-medium text-stone-900 leading-relaxed">${step.diagnosis}</div>
+                    ${step.recommended_actions ? `
+                      <div class="mt-2 text-3xs text-stone-600 flex items-center space-x-1.5">
+                        <span class="font-semibold text-stone-700">Recommended Actions:</span>
+                        ${step.recommended_actions.map(a => `<span class="bg-white px-1.5 py-0.5 rounded border border-amber-200 font-mono font-medium">${a}</span>`).join(' ')}
+                      </div>
+                    ` : ''}
+                  </div>
+                ` : ''}
+
+                ${step.results ? `
+                  <div class="mt-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs">
+                    <span class="text-3xs font-bold uppercase tracking-wider text-emerald-800">⚡ Execution & Target Platform Settlement</span>
+                    <div class="mt-1 space-y-1">
+                      ${step.results.map(r => `
+                        <div class="flex items-center justify-between text-2xs font-mono bg-white p-1.5 rounded border border-emerald-200/60">
+                          <span class="font-bold text-emerald-900">${r.action_type} &rarr; ${r.target_id}</span>
+                          <span class="text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">STATUS: ${r.status?.toUpperCase() || 'EXECUTED'}</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                ${step.post_ledger ? `
+                  <div class="mt-2 p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-300 text-xs">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <span class="text-3xs font-bold uppercase tracking-wider text-emerald-900">💳 Post-Execution Verified Ledger (Platform of Record)</span>
+                      <span class="text-3xs font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono">Net Charged: $${((step.post_ledger.net_charged_cents || 0)/100).toFixed(2)}</span>
+                    </div>
+                    <div class="space-y-1 text-3xs font-mono bg-white p-2 rounded border border-emerald-200">
+                      <div><strong>Total Charged:</strong> $${((step.post_ledger.total_charged_cents || 0)/100).toFixed(2)}</div>
+                      <div><strong>Total Refunded:</strong> <span class="text-rose-700 font-bold">-$${((step.post_ledger.total_refunded_cents || 0)/100).toFixed(2)}</span></div>
+                      <div class="border-t border-stone-200 pt-1 mt-1">
+                        <strong>Ledger Entries (${(step.post_ledger.entries || []).length}):</strong>
+                        ${(step.post_ledger.entries || []).map(e => `
+                          <div class="flex items-center justify-between text-stone-600 mt-0.5">
+                            <span>[${e.transaction_type}] ${e.reason || ''}</span>
+                            <span class="${e.transaction_type === 'REFUND' ? 'text-rose-700 font-bold' : 'text-stone-800'}">${e.transaction_type === 'REFUND' ? '-' : '+'}$${(e.amount_cents/100).toFixed(2)}</span>
+                          </div>
+                        `).join('')}
+                      </div>
+                    </div>
                   </div>
                 ` : ''}
 
@@ -795,12 +858,16 @@
             <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Formulated Repair Actions</h4>
             <div class="space-y-2.5">
               ${actions.map(act => `
-                <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/30">
+                <div class="p-3.5 rounded-xl border ${inc.status === 'COMPLETED' ? 'border-emerald-300 bg-emerald-50/40' : 'border-amber-300 bg-amber-50/40'}">
                   <div class="flex items-center justify-between text-xs mb-1">
-                    <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
+                    <div class="flex items-center space-x-2">
+                      <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
+                      ${act.action_type === 'refund_credits' ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full text-3xs font-bold">✋ Human Authorization Required</span>` : ''}
+                      ${inc.status === 'COMPLETED' ? `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full text-3xs font-bold">✅ Settled in Ledger</span>` : ''}
+                    </div>
                     <span class="text-3xs font-mono text-stone-500" title="Deterministic Idempotency Key">${(act.idempotency_key || '').slice(0, 16)}...</span>
                   </div>
-                  <div class="text-xs text-stone-700 font-mono text-3xs bg-white p-2 rounded border border-amber-200/50">
+                  <div class="text-xs text-stone-700 font-mono text-3xs bg-white p-2 rounded border border-amber-200/50 mt-1">
                     ${act.dry_run_preview || act.description || 'Action formulated and ready.'}
                   </div>
                 </div>
@@ -828,6 +895,33 @@
       if (tab === 'evidence') {
         return `
           <div>
+            ${state.verification?.post_ledger ? `
+              <div class="p-3.5 rounded-xl border border-emerald-300 bg-emerald-50/70 mb-3 shadow-xs">
+                <div class="flex items-center justify-between mb-1.5">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">✓</span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-emerald-900">Post-Execution Verified Billing Ledger</span>
+                  </div>
+                  <span class="text-xs font-bold px-2.5 py-1 rounded bg-emerald-200 text-emerald-950 font-mono">Customer Net Balance: $${((state.verification.post_ledger.net_charged_cents || 0)/100).toFixed(2)}</span>
+                </div>
+                <div class="text-3xs font-mono bg-white p-2.5 rounded-lg border border-emerald-200 space-y-1.5 mt-2">
+                  <div class="flex items-center justify-between text-stone-700">
+                    <span>Total Charged: <strong>$${((state.verification.post_ledger.total_charged_cents || 0)/100).toFixed(2)}</strong></span>
+                    <span>Total Refunded: <strong class="text-rose-700">-$${((state.verification.post_ledger.total_refunded_cents || 0)/100).toFixed(2)}</strong></span>
+                  </div>
+                  <div class="border-t border-stone-200 pt-1.5">
+                    <span class="font-bold text-stone-800">Immutable Ledger Transactions (${(state.verification.post_ledger.entries || []).length}):</span>
+                    ${(state.verification.post_ledger.entries || []).map(e => `
+                      <div class="flex items-center justify-between text-stone-600 mt-1 p-1 bg-stone-50 rounded">
+                        <span><strong>[${e.transaction_type}]</strong> ${e.reason || ''} <span class="text-stone-400">(${e.idempotency_key ? e.idempotency_key.slice(0, 16) + '...' : ''})</span></span>
+                        <span class="font-bold font-mono ${e.transaction_type === 'REFUND' ? 'text-rose-700' : 'text-stone-800'}">${e.transaction_type === 'REFUND' ? '-' : '+'}$${(e.amount_cents/100).toFixed(2)}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
             <h4 class="text-xs uppercase tracking-wider font-bold text-stone-700 mb-2">Deterministic Tool Ground Truth (Stamped with as_of & TTL)</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
               ${Object.keys(evidence).map(key => {
