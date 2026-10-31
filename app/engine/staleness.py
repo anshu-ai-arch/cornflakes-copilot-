@@ -88,19 +88,27 @@ class StalenessGuard:
         """Attempts fresh query for the given tool."""
         try:
             data = envelope.get("data", {})
-            if tool_name == "provider_status":
+            if tool_name in ["provider_status", "provider"]:
                 prov_id = data.get("provider_id")
                 if prov_id:
                     return DeterministicTools.provider_status(prov_id)
-            elif tool_name == "get_job":
+            elif tool_name in ["get_job", "job"]:
                 job_id = data.get("job", {}).get("job_id") or data.get("job_id")
                 if job_id:
                     return DeterministicTools.get_job(job_id)
-            elif tool_name == "ledger_for_job":
+            elif tool_name in ["ledger_for_job", "ledger"]:
                 job_id = data.get("job_id")
                 if job_id:
                     return DeterministicTools.ledger_for_job(job_id)
-            elif tool_name == "queue_depth":
+            elif tool_name in ["list_failed_shots", "shots"]:
+                job_id = data.get("job_id")
+                if job_id:
+                    return DeterministicTools.list_failed_shots(job_id)
+            elif tool_name in ["recent_logs", "logs"]:
+                job_id = data.get("job_id")
+                if job_id:
+                    return DeterministicTools.recent_logs(job_id)
+            elif tool_name in ["queue_depth", "queue"]:
                 return DeterministicTools.queue_depth()
         except Exception:
             return None
