@@ -134,24 +134,32 @@
   <section class="max-w-7xl mx-auto w-full px-6 pt-4">
     <div class="corn-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 bg-[#FFFDF8]">
       <div class="flex items-center space-x-2">
-        <span class="text-xs font-semibold text-stone-700">⚡ Trigger Live Scenarios:</span>
+        <span class="text-xs font-semibold text-stone-700">⚡ Live Agent Scenarios:</span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway 402 Account balance depleted')"
-                class="text-xs px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg shadow-sm transition">
-          + Provider Out of Funds
+        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway 402 Account balance depleted', true)"
+                class="text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition">
+          🚨 Provider Out of Funds (Approval Flow)
+        </button>
+        <button onclick="triggerScenario('OUT_OF_FUNDS', 'job_101', 'runway', 'Runway out of funds false alarm', false)"
+                class="text-xs px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white font-medium rounded-lg shadow-sm transition">
+          ⚠️ False Alarm (Trap T10 Guard)
         </button>
         <button onclick="triggerScenario('WORKER_DIED', 'job_103', 'luma', 'Worker lease expired; heartbeat missed 90s')"
                 class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
-          + Worker Died
+          🤖 Worker Crash (Auto-Approve)
         </button>
         <button onclick="triggerScenario('SHOT_FAILED_3X', 'job_102', 'pika', 'Shot render failed 3 times: frame glitch')"
                 class="text-xs px-3 py-1.5 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg shadow-sm transition">
-          + 3x Shot Glitch
+          ⚡ 3x Shot Glitch (Auto-Retry)
         </button>
         <button onclick="triggerSameAlert10Times()"
                 class="text-xs px-3 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition">
-          🔁 Fire 10 Duplicate Alerts (T1)
+          🔁 10x Alert Storm (Trap T1)
+        </button>
+        <button onclick="resetSimulation()"
+                class="text-xs px-2.5 py-1.5 bg-white hover:bg-stone-100 text-stone-600 rounded-lg border border-stone-300 transition">
+          ↺ Reset
         </button>
       </div>
     </div>
@@ -346,6 +354,12 @@
         if (inc.status === 'BLOCKED') badgeClass = 'badge-blocked';
         if (inc.status.includes('STALE')) badgeClass = 'badge-stale';
 
+        if (inc.status === 'QUEUED' || inc.status === 'TRIAGED' || inc.status === 'DIAGNOSED') {
+          setTimeout(() => {
+            if (activeIncidentId === id) loadIncidentDetail(id);
+          }, 800);
+        }
+
         const detailEl = document.getElementById('incident-detail');
         detailEl.innerHTML = `
           <!-- Header -->
@@ -373,7 +387,7 @@
           <div class="mt-4 p-3.5 rounded-xl bg-cream-50 border border-[#EAE4D3]">
             <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
             <p class="text-xs text-stone-800 mt-1 font-medium leading-relaxed">
-              ${diag.root_cause || 'Diagnosis in progress...'}
+              ${diag.root_cause || '<span class="flex items-center space-x-2 text-amber-800 animate-pulse font-medium"><span>⚡</span><span>Investigating ground facts with deterministic tools & runbooks...</span></span>'}
             </p>
             <div class="mt-2 flex items-center space-x-2 text-2xs text-stone-500">
               <span>Citations:</span>
@@ -450,6 +464,17 @@
       document.getElementById('approval-modal').classList.remove('flex');
     }
 
+    async function resetSimulation() {
+      try {
+        await fetch('/v1/simulation/reset', { method: 'POST' });
+        await resetClock();
+        await loadIncidents();
+        alert('Simulation state reset! Providers healthy, ledger cleared.');
+      } catch (e) {
+        alert('Reset error: ' + e.message);
+      }
+    }
+
     async function submitApproval() {
       if (!activeIncidentId) return;
       const approver = document.getElementById('modal-approver').value;
@@ -467,9 +492,12 @@
           alert(`⚠️ RE-VALIDATION REJECTED (Trap T4):\n${data.rejection_reason || data.message}`);
         } else if (res.status === 422) {
           alert(`⚠️ STALE DATA BLOCKED (Trap T6):\n${data.detail?.message || 'Data too old'}`);
+        } else if (res.ok) {
+          // Fast-lane advance through execution & verification
+          await fetch(`/v1/incidents/${activeIncidentId}/advance`, { method: 'POST' });
         }
         await loadIncidentDetail(activeIncidentId);
-        loadIncidents();
+        await loadIncidents();
       } catch (e) {
         alert(`Error: ${e.message}`);
       }
@@ -482,44 +510,87 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ approver: 'ops_admin@cornflakes.com', reason: 'Rejected from dashboard' })
       });
-      loadIncidentDetail(id);
-      loadIncidents();
+      await loadIncidentDetail(id);
+      await loadIncidents();
     }
 
-    async function triggerScenario(error_type, entity_id, provider, message) {
-      const res = await fetch('/v1/incidents', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          tenant_id: 'default_tenant',
-          error_type,
-          entity_id,
-          provider,
-          message
-        })
-      });
-      const data = await res.json();
-      await loadIncidents();
-      selectIncident(data.incident_id);
+    async function triggerScenario(error_type, entity_id, provider, message, is_out_of_funds_simulation = false) {
+      try {
+        // Set mock provider state if simulating specific outage or false alarm
+        if (is_out_of_funds_simulation && provider) {
+          await fetch('/v1/simulation/provider-state', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ provider_id: provider, status: 'OUT_OF_FUNDS', balance_cents: 0 })
+          });
+        } else if (!is_out_of_funds_simulation && error_type === 'OUT_OF_FUNDS' && provider) {
+          // Ensure provider is healthy to demonstrate Trap T10 guard
+          await fetch('/v1/simulation/provider-state', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ provider_id: provider, status: 'HEALTHY', balance_cents: 25000 })
+          });
+        }
+
+        // Ingest the alert
+        const res = await fetch('/v1/incidents', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            tenant_id: 'default_tenant',
+            error_type,
+            entity_id,
+            provider,
+            message
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.text();
+          alert('Server error: ' + err);
+          return;
+        }
+
+        const data = await res.json();
+
+        // Fast-lane advance state machine (triage -> diagnose -> propose -> policy)
+        await fetch(`/v1/incidents/${data.incident_id}/advance`, { method: 'POST' });
+
+        await loadIncidents();
+        selectIncident(data.incident_id);
+      } catch (err) {
+        alert('Scenario error: ' + err.message);
+      }
     }
 
     async function triggerSameAlert10Times() {
-      const payload = {
-        tenant_id: 'tenant_alpha',
-        error_type: 'OUT_OF_FUNDS',
-        entity_id: 'job_101',
-        provider: 'runway',
-        message: 'Duplicate alert storm test'
-      };
-      for (let i = 0; i < 10; i++) {
-        await fetch('/v1/incidents', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
+      try {
+        const payload = {
+          tenant_id: 'tenant_alpha',
+          error_type: 'OUT_OF_FUNDS',
+          entity_id: 'job_101',
+          provider: 'runway',
+          message: 'Duplicate alert storm test'
+        };
+        let lastId = null;
+        for (let i = 0; i < 10; i++) {
+          const res = await fetch('/v1/incidents', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+          });
+          const d = await res.json();
+          lastId = d.incident_id;
+        }
+        if (lastId) {
+          await fetch(`/v1/incidents/${lastId}/advance`, { method: 'POST' });
+        }
+        await loadIncidents();
+        if (lastId) selectIncident(lastId);
+        alert('Fired 10 duplicate alerts! Checked: Exactly 1 incident created with 10x merged counter.');
+      } catch (err) {
+        alert('Alert storm error: ' + err.message);
       }
-      await loadIncidents();
-      alert('Fired 10 duplicate alerts! Checked: Merged into exact 1 incident in queue.');
     }
 
     // Startup

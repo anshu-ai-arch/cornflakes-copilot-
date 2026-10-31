@@ -3,6 +3,7 @@ Main FastAPI application entrypoint.
 Provides Health, Clock Control, and mounts Routers.
 """
 
+import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,17 +15,34 @@ from app.core.config import settings
 from app.core.clock import Clock
 from app.db.session import init_db
 from app.api.incidents import router as incidents_router
+from app.worker.runner import IncidentWorker
+
+_embedded_worker = None
+_embedded_worker_task = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables on startup
+    global _embedded_worker, _embedded_worker_task
+    # Initialize database tables on startup (with automatic SQLite fallback)
     try:
         await init_db()
     except Exception as e:
-        # Log and continue (e.g. if DB is starting up in docker)
         print(f"Database init notice: {e}")
+
+    # Start embedded worker for zero-config local standalone operation
+    try:
+        _embedded_worker = IncidentWorker(worker_id="embedded-api-worker")
+        _embedded_worker_task = asyncio.create_task(_embedded_worker.start())
+    except Exception as e:
+        print(f"Worker start notice: {e}")
+
     yield
+
+    if _embedded_worker:
+        _embedded_worker.stop()
+    if _embedded_worker_task:
+        _embedded_worker_task.cancel()
 
 
 app = FastAPI(

@@ -405,3 +405,65 @@ async def reject_incident(
         "message": f"Incident {incident.id} rejected by {req.approver}."
     }
 
+
+@router.post("/incidents/{incident_id}/advance")
+async def advance_incident_endpoint(
+    incident_id: str,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Fast-lane manual/UI advancement trigger.
+    Advances the incident state machine through its nodes until it
+    pauses (e.g. AWAITING_APPROVAL) or reaches a terminal state.
+    """
+    from app.engine.runner import advance_incident_state
+
+    for _ in range(12):
+        stmt = select(Incident).where(Incident.id == incident_id)
+        result = await db.execute(stmt)
+        incident = result.scalars().first()
+        if not incident:
+            raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+
+        can_continue = await advance_incident_state(incident, db, worker_id="api-fast-lane")
+        if not can_continue:
+            break
+
+    stmt = select(Incident).where(Incident.id == incident_id)
+    result = await db.execute(stmt)
+    incident = result.scalars().first()
+
+    return {
+        "incident_id": incident.id,
+        "status": incident.status,
+        "current_node": incident.current_node,
+        "state_data": incident.state_data
+    }
+
+
+class ProviderStateRequest(BaseModel):
+    provider_id: str
+    status: str
+    balance_cents: Optional[int] = None
+
+
+@router.post("/simulation/provider-state")
+async def set_provider_state_endpoint(req: ProviderStateRequest):
+    """Allows setting mock platform provider state for scenario testing."""
+    from mock_platform.state import PlatformState
+    if req.provider_id in PlatformState.providers:
+        PlatformState.providers[req.provider_id]["status"] = req.status
+        if req.balance_cents is not None:
+            PlatformState.providers[req.provider_id]["balance_cents"] = req.balance_cents
+        PlatformState.providers[req.provider_id]["updated_at"] = Clock.now_iso()
+    return {"status": "updated", "provider": PlatformState.providers.get(req.provider_id)}
+
+
+@router.post("/simulation/reset")
+async def reset_simulation_endpoint():
+    """Resets mock platform state."""
+    from mock_platform.state import PlatformState
+    PlatformState.reset()
+    return {"status": "reset"}
+
+

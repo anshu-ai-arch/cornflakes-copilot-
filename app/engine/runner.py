@@ -32,12 +32,12 @@ async def advance_incident_state(
     """
     # Reconstruct IncidentState from JSON checkpoint
     state_dict = dict(incident.state_data or {})
-    state_dict.setdefault("incident_id", incident.id)
-    state_dict.setdefault("tenant_id", incident.tenant_id)
-    state_dict.setdefault("error_type", incident.error_type)
-    state_dict.setdefault("entity_id", incident.entity_id)
-    state_dict.setdefault("status", incident.status)
-    state_dict.setdefault("current_node", incident.current_node)
+    state_dict["incident_id"] = incident.id
+    state_dict["tenant_id"] = incident.tenant_id
+    state_dict["error_type"] = incident.error_type
+    state_dict["entity_id"] = incident.entity_id
+    state_dict["status"] = incident.status
+    state_dict["current_node"] = incident.current_node
 
     state = IncidentState(**state_dict)
     current_node = state.current_node
