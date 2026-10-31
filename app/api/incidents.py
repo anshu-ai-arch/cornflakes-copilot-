@@ -110,35 +110,96 @@ async def ingest_alert(
     from mock_platform.state import PlatformState
     if payload.entity_id.startswith("job_") and payload.entity_id not in PlatformState.jobs:
         now_iso = Clock.now_iso()
+        err_type = payload.error_type.upper()
+        
+        # Configure job state dynamically according to error_type
+        if "BILLING" in err_type:
+            job_status = "SUCCEEDED"
+            quoted_cost = 300
+            actual_charge = 450
+            shot_status = "SUCCEEDED"
+            failed_shots_count = 0
+            attempts = 1
+        elif "WORKER" in err_type:
+            job_status = "RUNNING"
+            quoted_cost = 300
+            actual_charge = 300
+            shot_status = "RUNNING"
+            failed_shots_count = 0
+            attempts = 1
+        elif "RATE_LIMIT" in err_type or "429" in err_type:
+            job_status = "RUNNING"
+            quoted_cost = 450
+            actual_charge = 450
+            shot_status = "PENDING"
+            failed_shots_count = 0
+            attempts = 1
+        elif "SHOT" in err_type or "FRAME" in err_type or "GLITCH" in err_type:
+            job_status = "FAILED"
+            quoted_cost = 600
+            actual_charge = 600
+            shot_status = "FAILED"
+            failed_shots_count = 3
+            attempts = 3
+        elif "CANCELLED" in err_type:
+            job_status = "CANCELLED"
+            quoted_cost = 450
+            actual_charge = 450
+            shot_status = "PENDING"
+            failed_shots_count = 0
+            attempts = 1
+        else:  # OUT_OF_FUNDS or other
+            job_status = "FAILED"
+            quoted_cost = 450
+            actual_charge = 450
+            shot_status = "FAILED"
+            failed_shots_count = 1
+            attempts = 3
+
         PlatformState.jobs[payload.entity_id] = {
             "job_id": payload.entity_id,
             "tenant_id": payload.tenant_id,
             "title": f"Generation Task ({payload.entity_id})",
-            "status": "FAILED",
+            "status": job_status,
             "stage": "video_generation",
             "provider": payload.provider or "runway",
-            "attempts": 3,
+            "attempts": attempts,
             "max_attempts": 3,
-            "worker_id": "worker_dynamic_1",
+            "worker_id": "worker_dynamic_1" if "WORKER" not in err_type else "worker_died_mid_job",
             "error": payload.message,
-            "actual_charge_cents": 450,
-            "quoted_cost_cents": 450,
+            "actual_charge_cents": actual_charge,
+            "quoted_cost_cents": quoted_cost,
             "created_at": now_iso,
             "updated_at": now_iso
         }
-        PlatformState.shots[payload.entity_id] = [
-            {"shot_id": f"{payload.entity_id}_1", "status": "FAILED", "cost_cents": 450, "attempts": 3, "error": payload.message}
-        ]
+
+        # Configure shots
+        if failed_shots_count > 0:
+            PlatformState.shots[payload.entity_id] = [
+                {"shot_id": f"{payload.entity_id}_1", "status": "FAILED", "cost_cents": 25, "attempts": failed_shots_count, "error": payload.message}
+            ]
+        else:
+            PlatformState.shots[payload.entity_id] = [
+                {"shot_id": f"{payload.entity_id}_1", "status": shot_status, "cost_cents": 25, "attempts": attempts, "error": None}
+            ]
+
+        # Configure ledger
         PlatformState.ledger.append({
             "id": len(PlatformState.ledger) + 1,
             "job_id": payload.entity_id,
             "tenant_id": payload.tenant_id,
             "idempotency_key": f"init_charge_{payload.entity_id}",
-            "amount_cents": 450,
+            "amount_cents": actual_charge,
             "transaction_type": "CHARGE",
             "reason": "Initial generation charge",
             "created_at": now_iso
         })
+
+        # Configure logs
+        PlatformState.logs[payload.entity_id] = [
+            {"timestamp": now_iso, "level": "INFO", "message": f"Job {payload.entity_id} queued on provider {payload.provider or 'runway'}"},
+            {"timestamp": now_iso, "level": "ERROR" if job_status == "FAILED" else "WARN", "message": payload.message}
+        ]
 
     # Initial state data payload
     initial_state_data = {

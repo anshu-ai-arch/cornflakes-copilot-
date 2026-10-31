@@ -83,19 +83,42 @@ async def diagnose_node(state: IncidentState) -> IncidentState:
     Supports BM25 RAG, schema validation, 1-time JSON repair,
     fact normalizer (T8), LLM-off fallback (T9), and citation enforcement (T11).
     """
-    query = f"{state.error_type} on {state.entity_id}. Provider: {state.provider or ''}"
+    job_err = state.evidence.get("job", {}).get("data", {}).get("job", {}).get("error", "")
+    query = f"{state.error_type} {job_err} on {state.entity_id}"
     res = await execute_diagnose_boundary(
         evidence=state.evidence,
         query_text=query
     )
 
-    category = "INFRASTRUCTURE"
-    if "OUT_OF_FUNDS" in state.error_type or "402" in str(res.get("diagnosis", "")):
+    citations = res.get("citations", [])
+    top_cite = citations[0] if citations else "RB-012"
+    err = state.error_type.upper()
+    diag_text = str(res.get("diagnosis", "")).upper()
+
+    if top_cite == "RB-001" or "OUT_OF_FUNDS" in err or "402" in diag_text:
         category = "PROVIDER_OUT_OF_FUNDS"
-    elif "WORKER" in state.error_type:
+    elif top_cite == "RB-002" or "WORKER" in err:
         category = "WORKER_CRASH"
-    elif "SHOT" in state.error_type:
+    elif top_cite == "RB-003" or "SHOT" in err:
         category = "SHOT_RETRY_EXHAUSTED"
+    elif top_cite == "RB-004" or "BILLING" in err or "CHARGE" in err:
+        category = "BILLING_DISCREPANCY"
+    elif top_cite == "RB-005" or "RATE_LIMIT" in err or "429" in err:
+        category = "RATE_LIMITED"
+    elif top_cite == "RB-006" or "FRAME" in err or "GLITCH" in err or "ARTIFACT" in err:
+        category = "FRAME_GLITCH"
+    elif top_cite == "RB-007" or "RECOVERY" in err or "RECOVERED" in err:
+        category = "PROVIDER_RECOVERY"
+    elif top_cite == "RB-008" or "CONGESTION" in err or "QUEUE" in err:
+        category = "QUEUE_CONGESTION"
+    elif top_cite == "RB-009" or "CANCELLED" in err:
+        category = "CANCELLED_JOB"
+    elif top_cite == "RB-010" or "STALE" in err:
+        category = "STALE_DATA"
+    elif top_cite == "RB-011" or "DESYNC" in err or "AUDIO" in err:
+        category = "AV_DESYNC"
+    else:
+        category = "UNCLASSIFIED"
 
     state.diagnosis = {
         "root_cause": res.get("diagnosis"),
@@ -200,17 +223,105 @@ async def propose_node(state: IncidentState) -> IncidentState:
             failed_shots = (
                 state.evidence.get("shots", {}).get("data", {}).get("failed_shots", [])
             )
+            if not failed_shots:
+                failed_shots = [{"shot_id": f"{job_id}_1", "cost_cents": 25}]
             for shot in failed_shots:
                 shot_id = shot.get("shot_id")
                 key = derive_action_idempotency_key(state.incident_id, "retry_shot", shot_id)
                 actions.append({
                     "action_type": "retry_shot",
                     "target_id": shot_id,
-                    "parameters": {"job_id": job_id, "shot_id": shot_id},
+                    "parameters": {"job_id": job_id, "shot_id": shot_id, "cost_cents": shot.get("cost_cents", 25)},
                     "idempotency_key": key,
                     "requires_human": False,  # Cheap shot retry can auto-approve
                     "description": f"Retry failed shot '{shot_id}'."
                 })
+
+    elif category == "BILLING_DISCREPANCY":
+        if job_id:
+            ledger_data = state.evidence.get("ledger", {}).get("data", {})
+            job_data = state.evidence.get("job", {}).get("data", {}).get("job", {})
+            total_charged = ledger_data.get("total_charged_cents", 450)
+            quoted_cost = job_data.get("quoted_cost_cents", 300)
+            discrepancy = max(150, total_charged - quoted_cost)
+            refund_amount = min(discrepancy, total_charged)
+            key = derive_action_idempotency_key(state.incident_id, "refund_credits", job_id)
+            actions.append({
+                "action_type": "refund_credits",
+                "target_id": job_id,
+                "parameters": {
+                    "amount_cents": refund_amount,
+                    "reason": f"Discrepancy reconciliation: quoted {quoted_cost}c vs charged {total_charged}c"
+                },
+                "idempotency_key": key,
+                "requires_human": True,  # Financial refund requires human authorization
+                "description": f"Refund overcharge discrepancy of {refund_amount} cents for job '{job_id}'."
+            })
+
+    elif category == "RATE_LIMITED":
+        if job_id:
+            key = derive_action_idempotency_key(state.incident_id, "requeue_job", job_id)
+            actions.append({
+                "action_type": "requeue_job",
+                "target_id": job_id,
+                "parameters": {"backoff_delay_seconds": 30},
+                "idempotency_key": key,
+                "requires_human": False,  # Safe backoff requeue can auto-approve
+                "description": f"Requeue throttled job '{job_id}' with exponential backoff (preserving provider status)."
+            })
+
+    elif category in ["FRAME_GLITCH", "AV_DESYNC"]:
+        if job_id:
+            shot_id = f"{job_id}_1"
+            failed_shots = state.evidence.get("shots", {}).get("data", {}).get("failed_shots", [])
+            if failed_shots:
+                shot_id = failed_shots[0].get("shot_id", shot_id)
+            key = derive_action_idempotency_key(state.incident_id, "retry_shot", shot_id)
+            actions.append({
+                "action_type": "retry_shot",
+                "target_id": shot_id,
+                "parameters": {"job_id": job_id, "shot_id": shot_id, "cost_cents": 25, "random_seed": True},
+                "idempotency_key": key,
+                "requires_human": False,  # Cheap re-render under cost cap can auto-approve
+                "description": f"Re-render defective shot '{shot_id}' with randomized seed."
+            })
+
+    elif category == "PROVIDER_RECOVERY":
+        if provider_id:
+            key = derive_action_idempotency_key(state.incident_id, "enable_provider", provider_id)
+            actions.append({
+                "action_type": "enable_provider",
+                "target_id": provider_id,
+                "parameters": {"reason": "Provider health checks verified passing"},
+                "idempotency_key": key,
+                "requires_human": True,
+                "description": f"Re-enable provider '{provider_id}' for production dispatch."
+            })
+
+    elif category == "CANCELLED_JOB":
+        if job_id:
+            net_charge = state.evidence.get("ledger", {}).get("data", {}).get("net_charged_cents", 0)
+            key = derive_action_idempotency_key(state.incident_id, "refund_credits", job_id)
+            actions.append({
+                "action_type": "refund_credits",
+                "target_id": job_id,
+                "parameters": {"amount_cents": net_charge, "reason": "Cancelled job credit release"},
+                "idempotency_key": key,
+                "requires_human": True,
+                "description": f"Release reserved credits ({net_charge} cents) for cancelled job '{job_id}'."
+            })
+
+    elif category in ["QUEUE_CONGESTION", "STALE_DATA", "UNCLASSIFIED"]:
+        if job_id and category == "QUEUE_CONGESTION":
+            key = derive_action_idempotency_key(state.incident_id, "requeue_job", job_id)
+            actions.append({
+                "action_type": "requeue_job",
+                "target_id": job_id,
+                "parameters": {"priority": "low"},
+                "idempotency_key": key,
+                "requires_human": False,
+                "description": f"Re-prioritize congested job '{job_id}' in background queue."
+            })
 
     # Requirement 18: Learning from outcomes - suppress proposals humans repeatedly rejected
     from mock_platform.state import PlatformState

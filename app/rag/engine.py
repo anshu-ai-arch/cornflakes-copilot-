@@ -39,8 +39,11 @@ class RunbookRAGEngine:
 
     @staticmethod
     def tokenize(text: str) -> List[str]:
-        """Simple deterministic tokenizer: lowercase, alphanumeric words."""
-        return [w.lower() for w in re.findall(r"\b[a-zA-Z0-9_\-]+\b", text) if len(w) > 1]
+        """Simple deterministic tokenizer: lowercase, alphanumeric words, splitting underscores."""
+        cleaned = text.replace("_", " ")
+        words = [w.lower() for w in re.findall(r"\b[a-zA-Z0-9_\-]+\b", text) if len(w) > 1]
+        split_words = [w.lower() for w in re.findall(r"\b[a-zA-Z0-9\-]+\b", cleaned) if len(w) > 1]
+        return list(words + split_words)
 
     def load_runbooks(self):
         """Loads and indexes all .md files in the runbooks directory."""

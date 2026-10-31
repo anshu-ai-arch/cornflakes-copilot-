@@ -41,20 +41,51 @@ def run_rule_based_diagnosis(
     shots_data = evidence.get("shots", {}).get("data", {})
     failed_count = shots_data.get("failed_shots_count", 0)
 
-    if provider_data.get("status") == "OUT_OF_FUNDS":
-        prov_id = provider_data.get("provider_id", "provider")
+    prov_id = provider_data.get("provider_id", "runway")
+    ledger_data = evidence.get("ledger", {}).get("data", {})
+    net_charged = ledger_data.get("net_charged_cents", 450)
+
+    if top_rb == "RB-001" or provider_data.get("status") == "OUT_OF_FUNDS":
         diagnosis_text = (
             f"Provider '{prov_id}' balance exhausted and returned 402 [{top_rb}]. "
             f"Job halted with {failed_count} failed shots [{top_rb}]."
         )
         rec_actions = ["disable_provider", "refund_credits"]
         citations = [top_rb]
-    elif "WORKER" in job_data.get("error", "").upper():
+    elif top_rb == "RB-002" or "WORKER" in job_data.get("error", "").upper():
         diagnosis_text = f"Worker heartbeat missed; worker presumed dead [{top_rb}]."
         rec_actions = ["requeue_job"]
         citations = [top_rb]
-    elif failed_count >= 3:
+    elif top_rb == "RB-003" or failed_count >= 3:
         diagnosis_text = f"Shot failed {failed_count} consecutive attempts [{top_rb}]."
+        rec_actions = ["retry_shot"]
+        citations = [top_rb]
+    elif top_rb == "RB-004":
+        diagnosis_text = f"Billing discrepancy detected: customer charged {net_charged} cents exceeding quote [{top_rb}]."
+        rec_actions = ["refund_credits"]
+        citations = [top_rb]
+    elif top_rb == "RB-005":
+        diagnosis_text = f"Provider '{prov_id}' rate limited with HTTP 429 [{top_rb}]."
+        rec_actions = ["requeue_job"]
+        citations = [top_rb]
+    elif top_rb == "RB-006":
+        diagnosis_text = f"Visual artifacts and quality degradation detected on output frames [{top_rb}]."
+        rec_actions = ["retry_shot"]
+        citations = [top_rb]
+    elif top_rb == "RB-007":
+        diagnosis_text = f"Provider '{prov_id}' recovered and verified healthy [{top_rb}]."
+        rec_actions = ["enable_provider"]
+        citations = [top_rb]
+    elif top_rb == "RB-008":
+        diagnosis_text = f"Queue congestion high watermark exceeded [{top_rb}]."
+        rec_actions = ["requeue_job"]
+        citations = [top_rb]
+    elif top_rb == "RB-009":
+        diagnosis_text = f"Generation project cancelled with unreleased credits [{top_rb}]."
+        rec_actions = ["refund_credits"]
+        citations = [top_rb]
+    elif top_rb == "RB-011":
+        diagnosis_text = f"Audio-video stream duration desynchronization exceeding 500ms [{top_rb}]."
         rec_actions = ["retry_shot"]
         citations = [top_rb]
     else:

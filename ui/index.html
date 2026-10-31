@@ -154,13 +154,23 @@
         </button>
         <button onclick="triggerDynamicScenario('WORKER_DIED', 'luma', 'Worker lease expired; heartbeat missed 90s')"
                 class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
-                title="Worker died: auto-approved zero-cost requeue">
+                title="Worker died: auto-approved zero-cost requeue (RB-002)">
           🤖 Worker Crash (Auto-Approve)
         </button>
         <button onclick="triggerDynamicScenario('SHOT_FAILED_3X', 'pika', 'Shot render failed 3 times: frame glitch')"
                 class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
-                title="Shot retry under $0.50 auto-approve cap">
+                title="Shot retry under $0.50 auto-approve cap (RB-003)">
           ⚡ 3x Shot Glitch (Auto-Retry)
+        </button>
+        <button onclick="triggerDynamicScenario('BILLING_DISCREPANCY', 'pika', 'Customer charged 450c for 300c generation quote (ledger discrepancy)')"
+                class="text-xs px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold rounded-lg border border-amber-300 transition"
+                title="Billing discrepancy detected: Formulates exact refund adjustment under named human approval (RB-004)">
+          💳 Billing Discrepancy (HITL)
+        </button>
+        <button onclick="triggerDynamicScenario('RATE_LIMITED', 'runway', 'Provider returned HTTP 429 Too Many Requests (Rate limit quota reached)')"
+                class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
+                title="Provider rate limited: Requeues with backoff without disabling healthy provider (RB-005)">
+          ⏳ Rate Limited (Auto-Requeue)
         </button>
         <button onclick="triggerSameAlert10Times()"
                 class="text-xs px-2.5 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition"
@@ -226,12 +236,15 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-semibold text-stone-700 mb-1">Error Category</label>
-            <select id="custom-error-type" class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-medium">
-              <option value="OUT_OF_FUNDS">OUT_OF_FUNDS (Provider balance depleted)</option>
-              <option value="WORKER_DIED">WORKER_DIED (Lease timeout / heartbeat missed)</option>
-              <option value="SHOT_FAILED_3X">SHOT_FAILED_3X (3x render retry exhausted)</option>
-              <option value="RATE_LIMITED">RATE_LIMITED (Concurrency throttled)</option>
-              <option value="BILLING_DISCREPANCY">BILLING_DISCREPANCY (Charge mismatch)</option>
+            <select id="custom-error-type" onchange="updateCustomMessagePlaceholder()" class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-medium">
+              <option value="OUT_OF_FUNDS">OUT_OF_FUNDS (RB-001: Provider balance depleted)</option>
+              <option value="WORKER_DIED">WORKER_DIED (RB-002: Lease timeout / heartbeat missed)</option>
+              <option value="SHOT_FAILED_3X">SHOT_FAILED_3X (RB-003: 3x render retry exhausted)</option>
+              <option value="BILLING_DISCREPANCY">BILLING_DISCREPANCY (RB-004: Charge mismatch)</option>
+              <option value="RATE_LIMITED">RATE_LIMITED (RB-005: Concurrency throttled 429)</option>
+              <option value="FRAME_GLITCH">FRAME_GLITCH (RB-006: Output visual artifacts)</option>
+              <option value="AV_DESYNC">AV_DESYNC (RB-011: Audio-video desynchronization)</option>
+              <option value="QUEUE_CONGESTION">QUEUE_CONGESTION (RB-008: High queue depth)</option>
             </select>
           </div>
           <div>
@@ -400,6 +413,37 @@
       document.getElementById('custom-alert-modal').classList.remove('flex');
     }
 
+    function updateCustomMessagePlaceholder() {
+      const type = document.getElementById('custom-error-type').value;
+      const msgEl = document.getElementById('custom-message');
+      const simEl = document.getElementById('custom-simulate-failure');
+      if (type === 'OUT_OF_FUNDS') {
+        msgEl.value = 'Provider returned HTTP 402: Account balance insufficient during rendering';
+        simEl.checked = true;
+      } else if (type === 'WORKER_DIED') {
+        msgEl.value = 'Worker process lease expired; heartbeat missed for >90s on render node';
+        simEl.checked = false;
+      } else if (type === 'SHOT_FAILED_3X') {
+        msgEl.value = 'Individual shot render failed 3 consecutive times: frame rendering glitch';
+        simEl.checked = false;
+      } else if (type === 'BILLING_DISCREPANCY') {
+        msgEl.value = 'Customer charged 450c on ledger for generation with 300c initial quote';
+        simEl.checked = false;
+      } else if (type === 'RATE_LIMITED') {
+        msgEl.value = 'Provider API returned HTTP 429: Too Many Requests (Rate limit quota reached)';
+        simEl.checked = false;
+      } else if (type === 'FRAME_GLITCH') {
+        msgEl.value = 'Rendered frames exhibit visual tearing and black frame artifacts';
+        simEl.checked = false;
+      } else if (type === 'AV_DESYNC') {
+        msgEl.value = 'Rendered audio duration 5.4s exceeds video frame duration 4.2s by 1200ms';
+        simEl.checked = false;
+      } else if (type === 'QUEUE_CONGESTION') {
+        msgEl.value = 'Dispatcher queue depth exceeds high watermark limit (depth > 50)';
+        simEl.checked = false;
+      }
+    }
+
     async function submitCustomAlert() {
       const error_type = document.getElementById('custom-error-type').value;
       const provider = document.getElementById('custom-provider').value;
@@ -419,13 +463,24 @@
 
     async function triggerScenario(error_type, entity_id, provider, message, is_out_of_funds_simulation = false) {
       try {
-        if (is_out_of_funds_simulation && provider) {
+        if (error_type === 'OUT_OF_FUNDS') {
+          const provStatus = is_out_of_funds_simulation ? 'OUT_OF_FUNDS' : 'HEALTHY';
+          const balance = is_out_of_funds_simulation ? 0 : 25000;
+          if (provider) {
+            await fetch('/v1/simulation/provider-state', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ provider_id: provider, status: provStatus, balance_cents: balance })
+            });
+          }
+        } else if (error_type === 'RATE_LIMITED' && provider) {
           await fetch('/v1/simulation/provider-state', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ provider_id: provider, status: 'OUT_OF_FUNDS', balance_cents: 0 })
+            body: JSON.stringify({ provider_id: provider, status: 'DEGRADED', balance_cents: 25000 })
           });
-        } else if (!is_out_of_funds_simulation && error_type === 'OUT_OF_FUNDS' && provider) {
+        } else if (provider) {
+          // Reset provider to clean healthy state so old out-of-funds states don't contaminate other incidents
           await fetch('/v1/simulation/provider-state', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -722,12 +777,15 @@
           <div>
             <!-- Root Cause Summary Box -->
             <div class="p-3.5 rounded-xl bg-cream-50 border border-[#EAE4D3] mb-4">
-              <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-2xs uppercase tracking-wider font-bold text-amber-800">Root Cause Diagnosis</span>
+                <span class="text-2xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-mono">${diag.category || 'N/A'}</span>
+              </div>
               <p class="text-xs text-stone-800 mt-1 font-medium leading-relaxed">
                 ${diag.root_cause || 'Diagnosis active...'}
               </p>
-              <div class="mt-2 flex items-center space-x-2 text-2xs text-stone-500">
-                <span>Citations:</span>
+              <div class="mt-2.5 flex items-center space-x-2 text-2xs text-stone-500">
+                <span>Runbook Citations:</span>
                 ${(diag.citations || []).map(c => `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">${c}</span>`).join(' ') || 'None'}
                 <span class="ml-auto">Confidence: <strong>${Math.round((diag.confidence || 0.95)*100)}%</strong></span>
               </div>
