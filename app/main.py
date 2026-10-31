@@ -153,3 +153,22 @@ async def reset_clock():
         "virtual_time": reset_time.isoformat(),
         "total_offset_seconds": 0.0
     }
+
+
+@app.get(f"{settings.API_PREFIX}/eval/benchmark")
+async def get_benchmark():
+    """Returns evaluation benchmark metrics across 60 ground-truth scenarios."""
+    from eval.evaluator import EvaluationRunner
+    runner = EvaluationRunner()
+    return runner.run_all()
+
+
+@app.post(f"{settings.API_PREFIX}/eval/run")
+async def execute_benchmark():
+    """Executes the 60-scenario evaluation benchmark on demand and updates EVAL_RESULTS.md."""
+    from eval.evaluator import EvaluationRunner
+    runner = EvaluationRunner()
+    metrics = runner.run_all()
+    runner.generate_markdown_report(metrics)
+    return metrics
+
