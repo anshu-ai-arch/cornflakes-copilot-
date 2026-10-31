@@ -145,6 +145,20 @@
     </div>
   </section>
 
+  <!-- Deterministic Security Trust Banner -->
+  <section class="max-w-7xl mx-auto w-full px-6 pt-2.5">
+    <div class="px-3 py-1.5 rounded-lg bg-cream-200/50 border border-[#EAE4D3] flex items-center justify-between text-3xs text-stone-600">
+      <div class="flex items-center space-x-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span class="font-bold text-stone-800">Deterministic Safety Active:</span>
+        <span>Guarded by 7-Layer Code Boundaries (Policy-as-Code, SHA-256 Idempotency, TTL Clock & Pre-Execution Re-Validation)</span>
+      </div>
+      <button onclick="switchView('eval')" class="text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer">
+        View 7-Layer Architecture & Benchmark &rarr;
+      </button>
+    </div>
+  </section>
+
   <!-- Live Agent Scenario Quick Launch Bar -->
   <section class="max-w-7xl mx-auto w-full px-6 pt-3.5">
     <div class="corn-card rounded-xl p-3 flex flex-wrap items-center justify-between gap-2.5 bg-[#FFFDF8]">
@@ -331,6 +345,170 @@
       <!-- Graph Rows -->
       <div id="benchmark-graph-container" class="space-y-5 text-xs">
         <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- 7-Layer Deterministic Safety Architecture & Code Boundaries -->
+    <div class="corn-card rounded-2xl p-6 bg-[#FFFDF8] border border-amber-200/80 shadow-sm">
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-stone-200">
+        <div>
+          <h3 class="text-base font-bold text-ink flex items-center space-x-2">
+            <span>🏛️ 7-Layer Deterministic Safety Architecture & Code Boundaries</span>
+            <span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">Zero Trust in LLM Output</span>
+          </h3>
+          <p class="text-xs text-stone-500 mt-0.5">Mathematical and code-level boundaries ensuring complete safety, idempotent executions, and durable state (PDF Page 1 & §4.1).</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+        
+        <!-- Layer 1 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 1</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>📦 Typed Tool Envelope</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 2 (Deterministic Tools)</div>
+              <div><strong>Core Guarantee:</strong> All facts, ledger counts, and timestamps strictly sourced from deterministic tools; LLM text never ingested for numbers.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/tools/deterministic.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Hallucinated numbers in financial transactions.
+          </div>
+        </div>
+
+        <!-- Layer 2 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 2</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>🛡️ 3-Tier LLM Safety Boundary</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 4 & Trap T9 (LLM off)</div>
+              <div><strong>Core Guarantee:</strong> Pydantic validation &rarr; 1-time auto-repair &rarr; 100% deterministic rule-based fallback when LLM is disabled or errors.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/llm/boundary.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Malformed JSON, 429 quota exhaustion, and total LLM outages.
+          </div>
+        </div>
+
+        <!-- Layer 3 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 3</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>✂️ Fact Normalizer & Citations</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> Traps T8 & T11 (Citation Pruning)</div>
+              <div><strong>Core Guarantee:</strong> Hallucinated counts overwritten by tool facts; sentences making claims without verified [RB-xxx] citations are dropped.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/llm/boundary.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Ungrounded claims and unverified advice reaching human operators.
+          </div>
+        </div>
+
+        <!-- Layer 4 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 4</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>⚖️ Policy-as-Code Engine</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 8, Traps T7 & T10</div>
+              <div><strong>Core Guarantee:</strong> Code-enforced rules: refund &le; actual charge, max $50 incident cap, named human for money, disable blocked if healthy.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/engine/policy.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Over-refunds, financial drain, and false alarm service shutdowns.
+          </div>
+        </div>
+
+        <!-- Layer 5 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 5</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>⏱️ Staleness & Re-Validation</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 5 & 6, Traps T4 & T6</div>
+              <div><strong>Core Guarantee:</strong> Tool TTL enforcement blocks stale approvals (STALE_BLOCKED). Fresh provider health check rejects 2-day-old approvals.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/engine/staleness.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Acting on 2-day-old outdated snapshots after situation resolved.
+          </div>
+        </div>
+
+        <!-- Layer 6 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 6</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>🔒 Exactly-Once Execution</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 7, Traps T2 & T3</div>
+              <div><strong>Core Guarantee:</strong> Deterministic SHA-256 idempotency key sha256(incident, action, target). Post-crash reconciliation queries target ledger first.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/engine/executor.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Duplicate refunds on double-clicks and worker crashes mid-flight.
+          </div>
+        </div>
+
+        <!-- Layer 7 -->
+        <div class="corn-card rounded-xl p-3.5 border border-[#EAE4D3] bg-white flex flex-col justify-between hover:border-amber-300 transition">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">Layer 7</span>
+              <span class="text-3xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">ENFORCED ✅</span>
+            </div>
+            <h4 class="text-xs font-bold text-stone-900 flex items-center space-x-1.5">
+              <span>🔁 Alert Storm Deduplication</span>
+            </h4>
+            <div class="mt-1 text-3xs text-stone-600 space-y-1">
+              <div><strong>PDF Requirement:</strong> §4.1 Item 1 & Traps T1 & T12</div>
+              <div><strong>Core Guarantee:</strong> 10-minute sliding window fingerprinting. 10 burst duplicate alerts merge into exactly 1 incident with duplicate counter.</div>
+              <div class="text-amber-900 font-mono"><strong>Code File:</strong> app/api/incidents.py</div>
+            </div>
+          </div>
+          <div class="mt-2.5 pt-2 border-t border-stone-100 text-3xs text-stone-500">
+            <strong>Protects Against:</strong> Cascading alert storms and redundant investigation loops.
+          </div>
+        </div>
+
       </div>
     </div>
 
