@@ -142,35 +142,35 @@
         <span class="text-xs font-semibold text-stone-700">Live Agent Scenarios:</span>
       </div>
       <div class="flex flex-wrap items-center gap-1.5">
-        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway 402 Account balance depleted', true)"
+        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway 402 Account balance depleted', true, 650, 650)"
                 class="text-xs px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg border border-amber-300 transition"
-                title="Generates a unique job ID, sets runway out-of-funds, and pauses for human approval">
-          🚨 Out of Funds (HITL)
+                title="Generates a unique job ID ($6.50 charge), sets runway out-of-funds, and pauses for human approval">
+          🚨 Out of Funds (HITL • $6.50)
         </button>
-        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway false alarm report', false)"
+        <button onclick="triggerDynamicScenario('OUT_OF_FUNDS', 'runway', 'Runway false alarm report', false, 450, 450)"
                 class="text-xs px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold rounded-lg border border-rose-300 transition"
                 title="Alert claims outage, but provider is healthy: Policy Engine blocks disabling healthy provider (Trap T10)">
           ⚠️ False Alarm (T10 Guard)
         </button>
-        <button onclick="triggerDynamicScenario('WORKER_DIED', 'luma', 'Worker lease expired; heartbeat missed 90s')"
+        <button onclick="triggerDynamicScenario('WORKER_DIED', 'luma', 'Worker lease expired; heartbeat missed 90s', false, 320, 320)"
                 class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
-                title="Worker died: auto-approved zero-cost requeue (RB-002)">
-          🤖 Worker Crash (Auto-Approve)
+                title="Worker died: auto-approved zero-cost requeue ($3.20 charge) (RB-002)">
+          🤖 Worker Crash ($3.20)
         </button>
-        <button onclick="triggerDynamicScenario('SHOT_FAILED_3X', 'pika', 'Shot render failed 3 times: frame glitch')"
+        <button onclick="triggerDynamicScenario('SHOT_FAILED_3X', 'pika', 'Shot render failed 3 times: frame glitch', false, 750, 750)"
                 class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
-                title="Shot retry under $0.50 auto-approve cap (RB-003)">
-          ⚡ 3x Shot Glitch (Auto-Retry)
+                title="Shot retry under $0.50 auto-approve cap ($7.50 charge) (RB-003)">
+          ⚡ 3x Shot Glitch ($7.50)
         </button>
-        <button onclick="triggerDynamicScenario('BILLING_DISCREPANCY', 'pika', 'Customer charged 450c for 300c generation quote (ledger discrepancy)')"
+        <button onclick="triggerDynamicScenario('BILLING_DISCREPANCY', 'pika', 'Customer charged $5.80 for $3.00 quote (ledger discrepancy: $2.80)', false, 580, 300)"
                 class="text-xs px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold rounded-lg border border-amber-300 transition"
-                title="Billing discrepancy detected: Formulates exact refund adjustment under named human approval (RB-004)">
-          💳 Billing Discrepancy (HITL)
+                title="Billing discrepancy detected: Formulates exact refund adjustment ($2.80) under named human approval (RB-004)">
+          💳 Billing Discrepancy (HITL • $2.80 Refund)
         </button>
-        <button onclick="triggerDynamicScenario('RATE_LIMITED', 'runway', 'Provider returned HTTP 429 Too Many Requests (Rate limit quota reached)')"
+        <button onclick="triggerDynamicScenario('RATE_LIMITED', 'runway', 'Provider returned HTTP 429 Too Many Requests (Rate limit quota reached)', false, 480, 480)"
                 class="text-xs px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium rounded-lg border border-stone-300 transition"
-                title="Provider rate limited: Requeues with backoff without disabling healthy provider (RB-005)">
-          ⏳ Rate Limited (Auto-Requeue)
+                title="Provider rate limited: Requeues with backoff without disabling healthy provider ($4.80 charge) (RB-005)">
+          ⏳ Rate Limited ($4.80)
         </button>
         <button onclick="triggerSameAlert10Times()"
                 class="text-xs px-2.5 py-1.5 bg-cream-200 hover:bg-cream-300 text-cream-900 font-medium rounded-lg border border-cream-400 transition"
@@ -268,6 +268,19 @@
             <label class="block font-semibold text-stone-700 mb-1">Tenant ID</label>
             <input type="text" id="custom-tenant-id" value="cornflakes_prod"
                    class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Actual Initial Charge ($)</label>
+            <input type="number" step="0.10" id="custom-actual-charge" value="6.50"
+                   class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-mono" placeholder="6.50">
+          </div>
+          <div>
+            <label class="block font-semibold text-stone-700 mb-1">Initial Quoted Cost ($)</label>
+            <input type="number" step="0.10" id="custom-quoted-cost" value="6.50"
+                   class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white font-mono" placeholder="6.50">
           </div>
         </div>
 
@@ -417,30 +430,49 @@
       const type = document.getElementById('custom-error-type').value;
       const msgEl = document.getElementById('custom-message');
       const simEl = document.getElementById('custom-simulate-failure');
+      const chargeEl = document.getElementById('custom-actual-charge');
+      const quoteEl = document.getElementById('custom-quoted-cost');
+
       if (type === 'OUT_OF_FUNDS') {
         msgEl.value = 'Provider returned HTTP 402: Account balance insufficient during rendering';
         simEl.checked = true;
+        if (chargeEl) chargeEl.value = '6.50';
+        if (quoteEl) quoteEl.value = '6.50';
       } else if (type === 'WORKER_DIED') {
         msgEl.value = 'Worker process lease expired; heartbeat missed for >90s on render node';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '3.20';
+        if (quoteEl) quoteEl.value = '3.20';
       } else if (type === 'SHOT_FAILED_3X') {
         msgEl.value = 'Individual shot render failed 3 consecutive times: frame rendering glitch';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '7.50';
+        if (quoteEl) quoteEl.value = '7.50';
       } else if (type === 'BILLING_DISCREPANCY') {
-        msgEl.value = 'Customer charged 450c on ledger for generation with 300c initial quote';
+        msgEl.value = 'Customer charged $5.80 on ledger for generation with $3.00 initial quote';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '5.80';
+        if (quoteEl) quoteEl.value = '3.00';
       } else if (type === 'RATE_LIMITED') {
         msgEl.value = 'Provider API returned HTTP 429: Too Many Requests (Rate limit quota reached)';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '4.80';
+        if (quoteEl) quoteEl.value = '4.80';
       } else if (type === 'FRAME_GLITCH') {
         msgEl.value = 'Rendered frames exhibit visual tearing and black frame artifacts';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '6.00';
+        if (quoteEl) quoteEl.value = '6.00';
       } else if (type === 'AV_DESYNC') {
         msgEl.value = 'Rendered audio duration 5.4s exceeds video frame duration 4.2s by 1200ms';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '4.20';
+        if (quoteEl) quoteEl.value = '4.20';
       } else if (type === 'QUEUE_CONGESTION') {
         msgEl.value = 'Dispatcher queue depth exceeds high watermark limit (depth > 50)';
         simEl.checked = false;
+        if (chargeEl) chargeEl.value = '5.00';
+        if (quoteEl) quoteEl.value = '5.00';
       }
     }
 
@@ -451,17 +483,22 @@
       const tenant_id = document.getElementById('custom-tenant-id').value;
       const message = document.getElementById('custom-message').value;
       const simulateFailure = document.getElementById('custom-simulate-failure').checked;
+      
+      const actual_charge_dollars = parseFloat(document.getElementById('custom-actual-charge').value || '6.50');
+      const quoted_cost_dollars = parseFloat(document.getElementById('custom-quoted-cost').value || '6.50');
+      const actual_charge_cents = Math.round(actual_charge_dollars * 100);
+      const quoted_cost_cents = Math.round(quoted_cost_dollars * 100);
 
       closeCustomAlertModal();
-      await triggerScenario(error_type, entity_id, provider, message, simulateFailure);
+      await triggerScenario(error_type, entity_id, provider, message, simulateFailure, actual_charge_cents, quoted_cost_cents);
     }
 
-    async function triggerDynamicScenario(error_type, provider, message, simulateFailure = false) {
+    async function triggerDynamicScenario(error_type, provider, message, simulateFailure = false, actual_charge_cents = null, quoted_cost_cents = null) {
       const dynamicJobId = 'job_' + Math.floor(100 + Math.random() * 900);
-      await triggerScenario(error_type, dynamicJobId, provider, message, simulateFailure);
+      await triggerScenario(error_type, dynamicJobId, provider, message, simulateFailure, actual_charge_cents, quoted_cost_cents);
     }
 
-    async function triggerScenario(error_type, entity_id, provider, message, is_out_of_funds_simulation = false) {
+    async function triggerScenario(error_type, entity_id, provider, message, is_out_of_funds_simulation = false, actual_charge_cents = null, quoted_cost_cents = null) {
       try {
         if (error_type === 'OUT_OF_FUNDS') {
           const provStatus = is_out_of_funds_simulation ? 'OUT_OF_FUNDS' : 'HEALTHY';
@@ -488,6 +525,10 @@
           });
         }
 
+        const details = {};
+        if (actual_charge_cents !== null) details.actual_charge_cents = actual_charge_cents;
+        if (quoted_cost_cents !== null) details.quoted_cost_cents = quoted_cost_cents;
+
         const res = await fetch('/v1/incidents', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -496,7 +537,8 @@
             error_type,
             entity_id,
             provider,
-            message
+            message,
+            details
           })
         });
 
@@ -508,11 +550,24 @@
 
         const data = await res.json();
 
-        // Fast-lane advance state machine (triage -> diagnose -> propose -> policy)
-        await fetch(`/v1/incidents/${data.incident_id}/advance`, { method: 'POST' });
-
-        await loadIncidents();
+        // Immediately select the new incident so user observes live investigation
         selectIncident(data.incident_id);
+        await loadIncidents();
+
+        // Stepped agent execution animation with 650ms pacing per node:
+        // triage -> diagnose -> propose -> policy -> pauses at AWAITING_APPROVAL (or COMPLETED)
+        let canContinue = true;
+        let safetyCounter = 0;
+        while (canContinue && safetyCounter < 10) {
+          safetyCounter++;
+          await new Promise(r => setTimeout(r, 650));
+          const advRes = await fetch(`/v1/incidents/${data.incident_id}/advance?single_step=true`, { method: 'POST' });
+          if (!advRes.ok) break;
+          const advData = await advRes.json();
+          canContinue = advData.can_continue;
+          await loadIncidentDetail(data.incident_id);
+          await loadIncidents();
+        }
       } catch (err) {
         alert('Scenario error: ' + err.message);
       }
@@ -685,6 +740,9 @@
             </div>
           </div>
 
+          <!-- Live Pipeline Stepper Widget -->
+          ${renderPipelineStepper(inc)}
+
           <!-- Tab Bar -->
           <div class="flex items-center space-x-1 mt-3 border-b border-stone-200 text-xs">
             <button onclick="setDetailTab('trajectory')"
@@ -713,6 +771,87 @@
       } catch (e) {
         console.error(e);
       }
+    }
+
+    function renderPipelineStepper(inc) {
+      const node = inc.current_node || 'triage';
+      const status = inc.status;
+
+      const stageLabels = [
+        { id: 'triage', num: '1', title: '1. Triage & Ingest' },
+        { id: 'diagnose', num: '2', title: '2. Tool Evidence' },
+        { id: 'propose', num: '3', title: '3. BM25 & LLM' },
+        { id: 'policy', num: '4', title: '4. Policy Gate' },
+        { id: 'execute', num: '5', title: '5. HITL / Execute' },
+        { id: 'verify', num: '6', title: '6. Ledger Verify' },
+      ];
+
+      let currentStageIdx = 0;
+      if (node === 'init' || node === 'triage') currentStageIdx = 0;
+      else if (node === 'diagnose') currentStageIdx = 1;
+      else if (node === 'propose') currentStageIdx = 2;
+      else if (node === 'policy') currentStageIdx = 3;
+      else if (status === 'AWAITING_APPROVAL') currentStageIdx = 4;
+      else if (node === 'execute') currentStageIdx = 4;
+      else if (node === 'verify') currentStageIdx = 5;
+
+      if (status === 'COMPLETED') currentStageIdx = 6;
+      if (status === 'BLOCKED') currentStageIdx = 3;
+      if (status === 'REJECTED') currentStageIdx = 4;
+
+      return `
+        <div class="mt-3 p-2.5 rounded-xl bg-amber-50/40 border border-amber-200/60 shadow-2xs">
+          <div class="flex items-center justify-between text-3xs font-semibold text-stone-500 mb-2 px-1">
+            <span class="flex items-center space-x-1.5 text-amber-900 font-bold">
+              <span class="w-2 h-2 rounded-full ${status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}"></span>
+              <span>LIVE AGENT INVESTIGATION PIPELINE</span>
+            </span>
+            <span class="font-mono text-stone-600">Active Node: <strong class="text-amber-800 font-bold">${node.toUpperCase()}</strong> &bull; Status: <span class="font-bold">${status}</span></span>
+          </div>
+          <div class="grid grid-cols-6 gap-1.5 text-center">
+            ${stageLabels.map((st, idx) => {
+              let boxClass = 'bg-white text-stone-400 border-stone-200';
+              let numClass = 'bg-stone-100 text-stone-500';
+              let icon = st.num;
+
+              if (status === 'BLOCKED' && idx === 3) {
+                boxClass = 'bg-rose-50 text-rose-800 border-rose-300 font-bold';
+                numClass = 'bg-rose-600 text-white font-bold';
+                icon = '✕';
+              } else if (status === 'REJECTED' && idx === 4) {
+                boxClass = 'bg-stone-100 text-stone-700 border-stone-300 font-bold';
+                numClass = 'bg-stone-600 text-white font-bold';
+                icon = '✕';
+              } else if (idx < currentStageIdx) {
+                boxClass = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-medium';
+                numClass = 'bg-emerald-600 text-white font-bold';
+                icon = '✓';
+              } else if (idx === currentStageIdx) {
+                if (status === 'AWAITING_APPROVAL') {
+                  boxClass = 'bg-amber-100 text-amber-900 border-amber-400 ring-2 ring-amber-400/50 font-bold animate-pulse';
+                  numClass = 'bg-amber-600 text-white font-bold';
+                  icon = '✋';
+                } else if (status === 'COMPLETED') {
+                  boxClass = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-medium';
+                  numClass = 'bg-emerald-600 text-white font-bold';
+                  icon = '✓';
+                } else {
+                  boxClass = 'bg-amber-50 text-amber-900 border-amber-400 ring-2 ring-amber-300/60 font-bold animate-pulse';
+                  numClass = 'bg-amber-500 text-white font-bold';
+                  icon = '🔄';
+                }
+              }
+
+              return `
+                <div class="p-1.5 rounded-lg border text-3xs transition-all ${boxClass}">
+                  <div class="w-4 h-4 mx-auto rounded-full flex items-center justify-center text-3xs mb-0.5 ${numClass}">${icon}</div>
+                  <div class="truncate font-semibold">${st.title}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
     }
 
     function renderTabContent(tab, inc, state, evidence, diag, actions, policy, trajectory) {
@@ -862,7 +1001,7 @@
                   <div class="flex items-center justify-between text-xs mb-1">
                     <div class="flex items-center space-x-2">
                       <span class="font-bold text-ink">${act.action_type} &rarr; <span class="font-mono text-stone-700">${act.target_id}</span></span>
-                      ${act.action_type === 'refund_credits' ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full text-3xs font-bold">✋ Human Authorization Required</span>` : ''}
+                      ${act.action_type === 'refund_credits' ? `<span class="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full text-3xs font-bold">✋ Human Authorization Required${act.parameters?.amount_cents ? ` ($${(act.parameters.amount_cents/100).toFixed(2)})` : ''}</span>` : ''}
                       ${inc.status === 'COMPLETED' ? `<span class="bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full text-3xs font-bold">✅ Settled in Ledger</span>` : ''}
                     </div>
                     <span class="text-3xs font-mono text-stone-500" title="Deterministic Idempotency Key">${(act.idempotency_key || '').slice(0, 16)}...</span>
@@ -964,9 +1103,30 @@
       return '';
     }
 
-    function openApprovalModal() {
+    async function openApprovalModal() {
+      const summaryEl = document.getElementById('modal-dry-run-summary');
+      summaryEl.innerText = 'Loading action dry-run preview...';
       document.getElementById('approval-modal').classList.remove('hidden');
       document.getElementById('approval-modal').classList.add('flex');
+
+      try {
+        const res = await fetch(`/v1/incidents/${activeIncidentId}`);
+        const inc = await res.json();
+        const actions = (inc.state_data || {}).proposed_actions || [];
+        if (actions.length > 0) {
+          summaryEl.innerHTML = actions.map(a => `
+            <div class="mb-1.5 pb-1 border-b border-amber-200/40 last:border-0 last:mb-0 last:pb-0 text-xs">
+              <span class="font-bold text-amber-950">${a.action_type}</span> &rarr; <span class="font-mono text-stone-800">${a.target_id}</span>
+              ${a.parameters?.amount_cents ? `<span class="ml-2 font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">Amount: $${(a.parameters.amount_cents/100).toFixed(2)}</span>` : ''}
+              <div class="text-3xs text-stone-600 font-mono mt-0.5">${a.dry_run_preview || a.description}</div>
+            </div>
+          `).join('');
+        } else {
+          summaryEl.innerText = 'No actions requiring approval.';
+        }
+      } catch (e) {
+        summaryEl.innerText = 'Ready to authorize formulated actions.';
+      }
     }
 
     function closeApprovalModal() {
@@ -992,8 +1152,22 @@
         } else if (res.status === 422) {
           alert(`⚠️ STALE DATA BLOCKED (Trap T6):\n${data.detail?.message || 'Data too old'}`);
         } else if (res.ok) {
-          // Fast-lane advance through execution & verification
-          await fetch(`/v1/incidents/${activeIncidentId}/advance`, { method: 'POST' });
+          // Stepped execution through execution & verification
+          await loadIncidentDetail(activeIncidentId);
+          await loadIncidents();
+          
+          let canContinue = true;
+          let safetyCounter = 0;
+          while (canContinue && safetyCounter < 5) {
+            safetyCounter++;
+            await new Promise(r => setTimeout(r, 600));
+            const advRes = await fetch(`/v1/incidents/${activeIncidentId}/advance?single_step=true`, { method: 'POST' });
+            if (!advRes.ok) break;
+            const advData = await advRes.json();
+            canContinue = advData.can_continue;
+            await loadIncidentDetail(activeIncidentId);
+            await loadIncidents();
+          }
         }
         await loadIncidentDetail(activeIncidentId);
         await loadIncidents();

@@ -112,46 +112,50 @@ async def ingest_alert(
         now_iso = Clock.now_iso()
         err_type = payload.error_type.upper()
         
+        # Check if caller passed custom financial amounts
+        custom_charge = payload.details.get("actual_charge_cents")
+        custom_quote = payload.details.get("quoted_cost_cents")
+
         # Configure job state dynamically according to error_type
         if "BILLING" in err_type:
             job_status = "SUCCEEDED"
-            quoted_cost = 300
-            actual_charge = 450
+            quoted_cost = custom_quote if custom_quote is not None else 300
+            actual_charge = custom_charge if custom_charge is not None else 580
             shot_status = "SUCCEEDED"
             failed_shots_count = 0
             attempts = 1
         elif "WORKER" in err_type:
             job_status = "RUNNING"
-            quoted_cost = 300
-            actual_charge = 300
+            quoted_cost = custom_quote if custom_quote is not None else 320
+            actual_charge = custom_charge if custom_charge is not None else 320
             shot_status = "RUNNING"
             failed_shots_count = 0
             attempts = 1
         elif "RATE_LIMIT" in err_type or "429" in err_type:
             job_status = "RUNNING"
-            quoted_cost = 450
-            actual_charge = 450
+            quoted_cost = custom_quote if custom_quote is not None else 520
+            actual_charge = custom_charge if custom_charge is not None else 520
             shot_status = "PENDING"
             failed_shots_count = 0
             attempts = 1
         elif "SHOT" in err_type or "FRAME" in err_type or "GLITCH" in err_type:
             job_status = "FAILED"
-            quoted_cost = 600
-            actual_charge = 600
+            quoted_cost = custom_quote if custom_quote is not None else 600
+            actual_charge = custom_charge if custom_charge is not None else 600
             shot_status = "FAILED"
             failed_shots_count = 3
             attempts = 3
         elif "CANCELLED" in err_type:
             job_status = "CANCELLED"
-            quoted_cost = 450
-            actual_charge = 450
+            quoted_cost = custom_quote if custom_quote is not None else 750
+            actual_charge = custom_charge if custom_charge is not None else 750
             shot_status = "PENDING"
             failed_shots_count = 0
             attempts = 1
         else:  # OUT_OF_FUNDS or other
             job_status = "FAILED"
-            quoted_cost = 450
-            actual_charge = 450
+            actual_charge = custom_charge if custom_charge is not None else 450
+            quoted_cost = custom_quote if custom_quote is not None else actual_charge
             shot_status = "FAILED"
             failed_shots_count = 1
             attempts = 3
@@ -530,16 +534,20 @@ async def reject_incident(
 @router.post("/incidents/{incident_id}/advance")
 async def advance_incident_endpoint(
     incident_id: str,
+    single_step: bool = False,
     db: AsyncSession = Depends(get_db_session)
 ):
     """
     Fast-lane manual/UI advancement trigger.
-    Advances the incident state machine through its nodes until it
-    pauses (e.g. AWAITING_APPROVAL) or reaches a terminal state.
+    If single_step=True, executes only the next single node (allowing step-by-step UI visualization).
+    If single_step=False (default), advances until it pauses or terminates (preserving fast test execution).
     """
     from app.engine.runner import advance_incident_state
 
-    for _ in range(12):
+    max_steps = 1 if single_step else 12
+    can_continue = True
+
+    for _ in range(max_steps):
         stmt = select(Incident).where(Incident.id == incident_id)
         result = await db.execute(stmt)
         incident = result.scalars().first()
@@ -558,6 +566,7 @@ async def advance_incident_endpoint(
         "incident_id": incident.id,
         "status": incident.status,
         "current_node": incident.current_node,
+        "can_continue": can_continue,
         "state_data": incident.state_data
     }
 
