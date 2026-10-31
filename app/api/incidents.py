@@ -5,6 +5,7 @@ and Trap T12 (correlation of 20 jobs with same root cause).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Response, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import hashlib
@@ -227,3 +228,180 @@ async def get_incident_events(
         }
         for ev in events
     ]
+
+
+class HumanApprovalRequest(BaseModel):
+    approver: str
+    reason: str
+
+
+class HumanRejectionRequest(BaseModel):
+    approver: str
+    reason: str
+
+
+@router.post("/incidents/{incident_id}/approve")
+async def approve_incident(
+    incident_id: str,
+    req: HumanApprovalRequest,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Approves an incident awaiting human authorization.
+    Performs Pre-Execution Re-Validation (Trap T4) and Staleness Checks (Trap T6).
+    """
+    from app.engine.staleness import StalenessGuard
+
+    stmt = select(Incident).where(Incident.id == incident_id)
+    result = await db.execute(stmt)
+    incident = result.scalars().first()
+
+    if not incident:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+
+    if incident.status not in ["AWAITING_APPROVAL", "STALE_BLOCKED"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve incident in status '{incident.status}'. Must be AWAITING_APPROVAL."
+        )
+
+    now = Clock.now()
+    now_iso = Clock.now_iso()
+    state_data = dict(incident.state_data or {})
+    proposed_actions = state_data.get("proposed_actions", [])
+    evidence = state_data.get("evidence", {})
+
+    # 1. Staleness Check (Trap T6): Check if tool results are too old to act upon
+    is_stale, updated_evidence, staleness_warnings = StalenessGuard.evaluate_evidence_staleness(
+        evidence, allow_refetch=True
+    )
+    if is_stale:
+        incident.status = "STALE_BLOCKED"
+        state_data["is_stale"] = True
+        state_data["staleness_warnings"] = staleness_warnings
+        incident.state_data = state_data
+        flag_modified(incident, "state_data")
+        await db.commit()
+
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "STALE_DATA_BLOCKED",
+                "message": "Incident data exceeds TTL limits and could not be refreshed. Approval refused.",
+                "warnings": staleness_warnings
+            }
+        )
+
+    # 2. Trap T4: Pre-Execution Re-Validation Guard
+    # Check if the external situation changed while waiting for approval
+    is_valid, rejection_reason = StalenessGuard.revalidate_before_execution(
+        proposed_actions=proposed_actions,
+        evidence=updated_evidence
+    )
+
+    if not is_valid:
+        # Re-validation detected situation resolved -> Reject execution with clear explanation!
+        incident.status = "REJECTED_STALE_CONDITION"
+        incident.current_node = "rejected"
+        state_data["approval"] = {
+            "status": "REJECTED_STALE_CONDITION",
+            "approver": req.approver,
+            "rejection_reason": rejection_reason,
+            "rejected_at": now_iso
+        }
+        incident.state_data = state_data
+        flag_modified(incident, "state_data")
+
+        event = IncidentEvent(
+            incident_id=incident.id,
+            event_type="APPROVAL_REJECTED_STALE_CONDITION",
+            payload={"reason": rejection_reason, "approver": req.approver},
+            created_at=now
+        )
+        db.add(event)
+        await db.commit()
+
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "status": "REJECTED_STALE_CONDITION",
+                "incident_id": incident.id,
+                "rejection_reason": rejection_reason,
+                "message": rejection_reason
+            }
+        )
+
+    # 3. Valid Approval: Transition to Execution
+    state_data["evidence"] = updated_evidence
+    state_data["approval"] = {
+        "status": "APPROVED",
+        "approver": req.approver,
+        "reason": req.reason,
+        "approved_at": now_iso
+    }
+    incident.status = "APPROVED_HUMAN"
+    incident.current_node = "execute"
+    incident.state_data = state_data
+    flag_modified(incident, "state_data")
+    incident.updated_at = now
+
+    event = IncidentEvent(
+        incident_id=incident.id,
+        event_type="APPROVAL_GRANTED",
+        payload={"approver": req.approver, "reason": req.reason},
+        created_at=now
+    )
+    db.add(event)
+    await db.commit()
+
+    return {
+        "status": "APPROVED_HUMAN",
+        "incident_id": incident.id,
+        "current_node": "execute",
+        "message": f"Incident {incident.id} approved by {req.approver} and queued for execution."
+    }
+
+
+@router.post("/incidents/{incident_id}/reject")
+async def reject_incident(
+    incident_id: str,
+    req: HumanRejectionRequest,
+    db: AsyncSession = Depends(get_db_session)
+):
+    stmt = select(Incident).where(Incident.id == incident_id)
+    result = await db.execute(stmt)
+    incident = result.scalars().first()
+
+    if not incident:
+        raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+
+    now = Clock.now()
+    now_iso = Clock.now_iso()
+    state_data = dict(incident.state_data or {})
+    state_data["approval"] = {
+        "status": "REJECTED",
+        "approver": req.approver,
+        "reason": req.reason,
+        "rejected_at": now_iso
+    }
+    incident.status = "REJECTED"
+    incident.current_node = "rejected"
+    incident.state_data = state_data
+    flag_modified(incident, "state_data")
+    incident.updated_at = now
+
+    event = IncidentEvent(
+        incident_id=incident.id,
+        event_type="APPROVAL_REJECTED",
+        payload={"approver": req.approver, "reason": req.reason},
+        created_at=now
+    )
+    db.add(event)
+    await db.commit()
+
+    return {
+        "status": "REJECTED",
+        "incident_id": incident.id,
+        "message": f"Incident {incident.id} rejected by {req.approver}."
+    }
+
