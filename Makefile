@@ -1,16 +1,19 @@
 .PHONY: test eval run chaos build up down
 
+PYTHON ?= $(shell which python3 2>/dev/null || which python 2>/dev/null || echo ./venv/bin/python)
+PYTEST ?= $(shell which pytest 2>/dev/null || echo $(PYTHON) -m pytest)
+
 test:
-	./venv/bin/pytest tests/ -v
+	@if [ -f "./venv/bin/pytest" ]; then ./venv/bin/pytest tests/ -v; else $(PYTEST) tests/ -v; fi
 
 eval:
-	./venv/bin/python -m eval.evaluator
+	@if [ -f "./venv/bin/python" ]; then ./venv/bin/python -m eval.evaluator; else $(PYTHON) -m eval.evaluator; fi
 
 run:
-	./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	@if [ -f "./venv/bin/uvicorn" ]; then ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload; else $(PYTHON) -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload; fi
 
 chaos:
-	bash scripts/chaos.sh
+	@if [ -f "./venv/bin/python" ]; then ./venv/bin/python scripts/chaos.py; else $(PYTHON) scripts/chaos.py; fi
 
 build:
 	docker compose build

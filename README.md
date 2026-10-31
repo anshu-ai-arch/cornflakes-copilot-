@@ -10,9 +10,15 @@
 
 To run the complete production environment (PostgreSQL 16, FastAPI API, Worker 1, Worker 2, Mock Platform, and the warm cream Operations Dashboard):
 
-```bash
-docker compose up --build
-```
+- **Mac / Linux / Universal Docker:**
+  ```bash
+  docker compose up --build
+  ```
+- **Windows (One-Click Launcher):**
+  Double-click `run.bat` or run:
+  ```cmd
+  run.bat
+  ```
 
 ### Access Endpoints:
 - **Operations Dashboard (Warm Cream UI):** [http://localhost:8000](http://localhost:8000)
@@ -22,26 +28,56 @@ docker compose up --build
 
 ---
 
-## 🎯 Verification Commands
+## 🎯 Verification Commands (Cross-Platform: Mac, Linux, Windows & Docker)
 
-### 1. Run Automated Test Suite (29 Tests covering T1–T12)
-```bash
-make test
-# OR: ./venv/bin/pytest tests/ -v
-```
+### 1. Run Automated Test Suite (33 Tests covering T1–T12)
+- **Mac / Linux:**
+  ```bash
+  make test
+  # OR: pytest tests/ -v
+  ```
+- **Windows (PowerShell / Command Prompt):**
+  ```cmd
+  test.bat
+  # OR: python -m pytest tests/ -v
+  ```
+- **Inside Docker (Any OS):**
+  ```bash
+  docker compose exec api pytest tests/ -v
+  ```
 
 ### 2. Run 60-Scenario Evaluation Benchmark
-```bash
-make eval
-# OR: ./venv/bin/python -m eval.evaluator
-```
-Generates terminal comparison table and commits `EVAL_RESULTS.md`.
+- **Mac / Linux:**
+  ```bash
+  make eval
+  # OR: python3 -m eval.evaluator
+  ```
+- **Windows:**
+  ```cmd
+  eval.bat
+  # OR: python -m eval.evaluator
+  ```
+- **Inside Docker (Any OS):**
+  ```bash
+  docker compose exec api python -m eval.evaluator
+  ```
+*(Also runnable directly in browser via the **`📊 Evaluation & Benchmarks`** tab on the Operations Dashboard).*
 
 ### 3. Run Live Chaos Suite (T1, T2, T3, T5, T12)
-```bash
-make chaos
-# OR: bash scripts/chaos.sh
-```
+- **Mac / Linux:**
+  ```bash
+  make chaos
+  # OR: python3 scripts/chaos.py
+  ```
+- **Windows:**
+  ```cmd
+  chaos.bat
+  # OR: python scripts/chaos.py
+  ```
+- **Inside Docker (Any OS):**
+  ```bash
+  docker compose exec api python scripts/chaos.py
+  ```
 
 ---
 
