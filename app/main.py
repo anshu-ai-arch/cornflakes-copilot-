@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.core.config import settings
 from app.core.clock import Clock
 from app.db.session import init_db
+from app.api.incidents import router as incidents_router
 
 
 @asynccontextmanager
@@ -39,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount Routers
+app.include_router(incidents_router)
 
 
 class ClockAdvanceRequest(BaseModel):
